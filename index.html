@@ -470,7 +470,7 @@ async function generateGoalWithAI(){
     // Call our backend API
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3000/api/generate-goal-plan'
-      : 'https://life-os-api.vercel.app/api/generate-goal-plan';
+      : 'https://life-f8s91mm1h-karanbtcs-projects.vercel.app/api/generate-goal-plan';
 
     const response = await fetch(API_URL, {
       method: 'POST',
