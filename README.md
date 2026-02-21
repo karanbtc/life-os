@@ -32,6 +32,27 @@
 
 ## 🚀 Deployment Steps
 
+### NEW: ✨ AI-Powered Goal Assistant
+
+When adding a goal, check the **"✨ AI Assistant"** checkbox and Claude will automatically generate:
+1. **Steps** — 5-7 actionable steps to achieve your goal
+2. **Schedule Blocks** — Daily time blocks for this goal
+3. **Habits** — Relevant daily habits to support this goal  
+4. **Weekly Tasks** — Task breakdown across Mon-Sun
+
+**How to use:**
+1. Click "＋ Add Goal"
+2. Check **✨ AI Assistant** checkbox
+3. Fill in: Goal Title, Area, Why (optional), Deadline (optional)
+4. Click "Save Goal"
+5. Claude generates everything automatically!
+
+**Example:**
+- Goal: "Learn Spanish"
+- AI generates: Daily Duolingo blocks, "Practice 10 min daily" habit, Weekly tasks like "Learn 20 new words" (Monday), "Watch Spanish show" (Friday), etc.
+
+---
+
 ### Step 1: Firebase Setup (One-time)
 1. Go to Firebase Console → Authentication → Settings
 2. Add to **Authorized domains**: `karanbtc.github.io`
@@ -77,6 +98,11 @@
 
 ✅ Multi-user authentication (Email + Google)
 ✅ Cloud sync across devices
+✅ **✨ AI-Powered Goal Assistant** (NEW!)
+  - Automatically generates steps for any goal
+  - Creates daily schedule blocks
+  - Suggests relevant habits
+  - Maps weekly tasks
 ✅ Editable goals (add/edit/delete)
 ✅ Editable schedule blocks (add/edit/delete)
 ✅ Editable habits (add/edit/delete)
