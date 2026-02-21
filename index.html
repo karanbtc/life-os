@@ -467,157 +467,111 @@ async function generateGoalWithAI(){
       deadlineText=d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
     }
 
-    const prompt=`Create a detailed action plan for this goal:
+    // Call our backend API
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000/api/generate-goal-plan'
+      : 'https://life-os-api.vercel.app/api/generate-goal-plan';
 
-Goal: "${title}"
-Category: ${area}
-Why it matters: ${why||'Personal growth'}
-Deadline: ${deadlineText}
-
-Generate a comprehensive plan in JSON format with these exact fields:
-
-{
-  "steps": ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"],
-  "dailySchedule": [
-    {
-      "time": "9:00-9:30 AM",
-      "icon": "📚",
-      "activity": "Activity name",
-      "details": "What exactly to do",
-      "minutes": 30
-    }
-  ],
-  "habits": [
-    {"icon": "📱", "label": "Daily habit description"}
-  ],
-  "weeklyTasks": [
-    "Monday task",
-    "Tuesday task", 
-    "Wednesday task",
-    "Thursday task",
-    "Friday task",
-    "Saturday task",
-    "Sunday task"
-  ]
-}
-
-IMPORTANT: Return ONLY the JSON object, no markdown, no explanation, no backticks.`;
-
-    const response=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json",
-        "anthropic-version":"2023-06-01"
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
       },
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:2000,
-        messages:[{role:"user",content:prompt}]
+      body: JSON.stringify({
+        title,
+        area,
+        why: why || 'Personal growth',
+        deadline: deadlineText
       })
     });
 
-    if(!response.ok){
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'API request failed');
     }
 
-    const data=await response.json();
-    
-    if(!data.content||data.content.length===0){
-      throw new Error('No content in API response');
-    }
-
-    let aiText=data.content.find(c=>c.type==='text')?.text||'';
-    
-    if(!aiText){
-      throw new Error('No text content in response');
-    }
-
-    // Clean JSON - remove markdown, backticks, etc.
-    aiText=aiText.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
-    
-    // Try to find JSON object if there's extra text
-    const jsonMatch=aiText.match(/\{[\s\S]*\}/);
-    if(jsonMatch){
-      aiText=jsonMatch[0];
-    }
-
-    const plan=JSON.parse(aiText);
+    const { plan } = await response.json();
 
     // Validate plan structure
-    if(!plan.steps||!Array.isArray(plan.steps)||plan.steps.length===0){
-      throw new Error('Invalid plan structure: missing steps');
+    if(!plan.steps || !Array.isArray(plan.steps) || plan.steps.length === 0){
+      throw new Error('Invalid plan structure received');
     }
 
     // Apply steps to form
-    document.getElementById('gSteps').value=plan.steps.join('\n');
+    document.getElementById('gSteps').value = plan.steps.join('\n');
 
     // Save goal first
     await saveGoal();
 
     // Then add schedule blocks
-    if(plan.dailySchedule&&Array.isArray(plan.dailySchedule)&&plan.dailySchedule.length>0){
-      const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
-      plan.dailySchedule.forEach(block=>{
+    if(plan.dailySchedule && Array.isArray(plan.dailySchedule) && plan.dailySchedule.length > 0){
+      const sched = JSON.parse(JSON.stringify(userData.schedule || DEFAULT_SCHEDULE));
+      plan.dailySchedule.forEach(block => {
         // Parse time to get hour
-        const timeMatch=block.time.match(/(\d+):(\d+)/);
-        const h=timeMatch?parseFloat(timeMatch[1])+(parseFloat(timeMatch[2]||0)/60):12;
+        const timeMatch = block.time.match(/(\d+):(\d+)/);
+        let h = 12;
+        if(timeMatch){
+          h = parseFloat(timeMatch[1]);
+          if(block.time.includes('PM') && h !== 12) h += 12;
+          if(block.time.includes('AM') && h === 12) h = 0;
+          h += (parseFloat(timeMatch[2] || 0) / 60);
+        }
         
         sched.push({
-          t:block.time,
-          i:block.icon||'📌',
-          a:block.activity,
-          d:block.details||'',
-          g:area,
-          p:'High',
-          h:h
+          t: block.time,
+          i: block.icon || '📌',
+          a: block.activity,
+          d: block.details || '',
+          g: area,
+          p: 'High',
+          h: h
         });
       });
-      sched.sort((a,b)=>a.h-b.h);
-      await save({schedule:sched});
+      sched.sort((a, b) => a.h - b.h);
+      await save({schedule: sched});
     }
 
     // Add habits
-    if(plan.habits&&Array.isArray(plan.habits)&&plan.habits.length>0){
-      const habs=JSON.parse(JSON.stringify(userData.habits||DEFAULT_HABITS));
-      plan.habits.forEach(habit=>{
+    if(plan.habits && Array.isArray(plan.habits) && plan.habits.length > 0){
+      const habs = JSON.parse(JSON.stringify(userData.habits || DEFAULT_HABITS));
+      plan.habits.forEach(habit => {
         habs.push({
-          id:'h'+Date.now()+Math.random(),
-          i:habit.icon||'⭐',
-          l:habit.label
+          id: 'h' + Date.now() + Math.random(),
+          i: habit.icon || '⭐',
+          l: habit.label
         });
       });
-      await save({habits:habs});
+      await save({habits: habs});
     }
 
     // Add weekly tasks
-    if(plan.weeklyTasks&&Array.isArray(plan.weeklyTasks)&&plan.weeklyTasks.length===7){
-      const weekly=JSON.parse(JSON.stringify(userData.weekly||DEFAULT_WEEKLY));
+    if(plan.weeklyTasks && Array.isArray(plan.weeklyTasks) && plan.weeklyTasks.length === 7){
+      const weekly = JSON.parse(JSON.stringify(userData.weekly || DEFAULT_WEEKLY));
       weekly.push({
-        a:`${area} - ${title}`,
-        t:plan.weeklyTasks
+        a: area,
+        t: plan.weeklyTasks
       });
       await save({weekly});
     }
 
     closeModal('goalModal');
-    toast('🎉 Goal created with AI plan!');
+    toast('🎉 Goal created with AI-powered plan!');
     
-  }catch(e){
-    console.error('AI generation error:',e);
-    let errorMsg='AI generation failed. Please add steps manually.';
+  } catch(e) {
+    console.error('AI generation error:', e);
+    let errorMsg = 'AI generation failed. Please add steps manually.';
     
-    // More specific error messages
-    if(e.message.includes('JSON')){
-      errorMsg='AI response format error. Please add steps manually.';
-    }else if(e.message.includes('API error')){
-      errorMsg='API connection error. Please check console and add steps manually.';
+    if(e.message.includes('fetch')) {
+      errorMsg = 'Could not connect to AI service. Please check your connection.';
+    } else if(e.message.includes('JSON')) {
+      errorMsg = 'AI response format error. Please try again.';
     }
     
-    toast(errorMsg,'info');
-    document.getElementById('manualSteps').style.display='block';
-    document.getElementById('aiLoading').style.display='none';
-  }finally{
-    document.getElementById('saveGoalBtn').disabled=false;
+    toast(errorMsg, 'info');
+    document.getElementById('manualSteps').style.display = 'block';
+    document.getElementById('aiLoading').style.display = 'none';
+  } finally {
+    document.getElementById('saveGoalBtn').disabled = false;
   }
 }
 
@@ -1409,11 +1363,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <div class="modal-box">
     <div class="modal-title"id="goalModalTitle">Add Goal</div>
     
-    <!-- AI Toggle -->
+    <!-- AI Assistant Toggle -->
     <div style="background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
       <input type="checkbox"id="aiToggle"style="width:18px;height:18px;cursor:pointer;">
       <label for="aiToggle"style="cursor:pointer;flex:1;font-size:13px;color:var(--text);margin:0;">
-        <strong style="color:var(--accent);">✨ AI Assistant</strong> — Let Claude generate steps, schedule & habits for this goal
+        <strong style="color:var(--accent);">✨ AI Assistant</strong> — Let AI generate personalized steps, schedule & habits for this goal
       </label>
     </div>
 
@@ -1449,8 +1403,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     </div>
 
     <div id="aiLoading"style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">
-      <div style="font-size:32px;margin-bottom:8px;">✨</div>
-      <div>Claude is generating your personalized plan...</div>
+      <div style="font-size:32px;margin-bottom:8px;">🤖</div>
+      <div>AI is generating your personalized plan...</div>
+      <div style="margin-top:8px;font-size:11px;opacity:0.7;">This may take 5-10 seconds</div>
     </div>
 
     <div class="modal-btns">
