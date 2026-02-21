@@ -344,7 +344,7 @@ function renderGoals(){
         </div>
         <button class="abtn sm"style="margin-top:10px"onclick="addStep('${g.id}')">＋ Add Step</button>
         <div class="gmeta">
-          <span class="gdl">🗓 ${g.deadline}</span>
+          <span class="gdl">🗓 ${formatDeadline(g.deadline)}</span>
           <span style="font-size:11px;color:var(--muted)">${g.measure}</span>
         </div>
       </div>`;
@@ -385,6 +385,8 @@ window.openAddGoal=()=>{
   document.getElementById('aiLoading').style.display='none';
   document.getElementById('gTitle').value='';
   document.getElementById('gArea').value='';
+  document.getElementById('gAreaCustom').value='';
+  document.getElementById('customAreaField').style.display='none';
   document.getElementById('gWhy').value='';
   document.getElementById('gDeadline').value='';
   document.getElementById('gMeasure').value='';
@@ -394,6 +396,41 @@ window.openAddGoal=()=>{
   document.getElementById('saveGoalBtn').onclick=saveGoalWithAI;
   openModal('goalModal');
 };
+
+// Area dropdown handler
+document.addEventListener('DOMContentLoaded',()=>{
+  const areaSelect=document.getElementById('gArea');
+  const customField=document.getElementById('customAreaField');
+  if(areaSelect){
+    areaSelect.addEventListener('change',function(){
+      if(this.value==='Custom'){
+        customField.style.display='block';
+      }else{
+        customField.style.display='none';
+      }
+    });
+  }
+});
+
+// Get area value (handle custom)
+function getAreaValue(){
+  const area=document.getElementById('gArea').value;
+  if(area==='Custom'){
+    return document.getElementById('gAreaCustom').value.trim();
+  }
+  return area;
+}
+
+// Format deadline nicely
+function formatDeadline(deadline){
+  if(!deadline)return 'No deadline';
+  // Check if it's a date string (YYYY-MM-DD)
+  if(deadline.match(/^\d{4}-\d{2}-\d{2}$/)){
+    const d=new Date(deadline);
+    return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  }
+  return deadline;
+}
 window.closeModal=(id)=>document.getElementById(id).style.display='none';
 
 // AI Goal Generation
@@ -408,9 +445,9 @@ window.saveGoalWithAI=async()=>{
 
 async function generateGoalWithAI(){
   const title=document.getElementById('gTitle').value.trim();
-  const area=document.getElementById('gArea').value.trim();
+  const area=getAreaValue();
   const why=document.getElementById('gWhy').value.trim();
-  const deadline=document.getElementById('gDeadline').value.trim();
+  const deadline=document.getElementById('gDeadline').value;
   
   if(!title||!area){
     toast('Title and area required','info');
@@ -423,28 +460,55 @@ async function generateGoalWithAI(){
   document.getElementById('saveGoalBtn').disabled=true;
 
   try{
-    const prompt=`I want to achieve this goal: "${title}" in the area of ${area}.
+    // Format deadline nicely
+    let deadlineText='No specific deadline';
+    if(deadline){
+      const d=new Date(deadline);
+      deadlineText=d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+    }
 
+    const prompt=`Create a detailed action plan for this goal:
+
+Goal: "${title}"
+Category: ${area}
 Why it matters: ${why||'Personal growth'}
-Deadline: ${deadline||'No specific deadline'}
+Deadline: ${deadlineText}
 
-Please generate a comprehensive plan in JSON format with:
-1. steps: Array of 5-7 actionable steps to achieve this goal
-2. dailySchedule: Suggest 1-2 daily time blocks (with time, icon emoji, activity name, details, duration in minutes)
-3. habits: Suggest 2-3 daily habits to support this goal (with icon emoji and habit description)
-4. weeklyTasks: Suggest tasks for each day of the week (array of 7 tasks, one per day Mon-Sun)
+Generate a comprehensive plan in JSON format with these exact fields:
 
-Return ONLY valid JSON, no markdown formatting:
 {
-  "steps": ["step1", "step2", ...],
-  "dailySchedule": [{"time":"9:00-9:30 AM","icon":"📚","activity":"Spanish Practice","details":"Duolingo + flashcards","minutes":30}],
-  "habits": [{"icon":"📱","label":"10 min Spanish app daily"}],
-  "weeklyTasks": ["Monday task", "Tuesday task", ...]
-}`;
+  "steps": ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"],
+  "dailySchedule": [
+    {
+      "time": "9:00-9:30 AM",
+      "icon": "📚",
+      "activity": "Activity name",
+      "details": "What exactly to do",
+      "minutes": 30
+    }
+  ],
+  "habits": [
+    {"icon": "📱", "label": "Daily habit description"}
+  ],
+  "weeklyTasks": [
+    "Monday task",
+    "Tuesday task", 
+    "Wednesday task",
+    "Thursday task",
+    "Friday task",
+    "Saturday task",
+    "Sunday task"
+  ]
+}
+
+IMPORTANT: Return ONLY the JSON object, no markdown, no explanation, no backticks.`;
 
     const response=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{
+        "Content-Type":"application/json",
+        "anthropic-version":"2023-06-01"
+      },
       body:JSON.stringify({
         model:"claude-sonnet-4-20250514",
         max_tokens:2000,
@@ -452,24 +516,52 @@ Return ONLY valid JSON, no markdown formatting:
       })
     });
 
+    if(!response.ok){
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+
     const data=await response.json();
+    
+    if(!data.content||data.content.length===0){
+      throw new Error('No content in API response');
+    }
+
     let aiText=data.content.find(c=>c.type==='text')?.text||'';
     
-    // Clean JSON
-    aiText=aiText.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+    if(!aiText){
+      throw new Error('No text content in response');
+    }
+
+    // Clean JSON - remove markdown, backticks, etc.
+    aiText=aiText.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+    
+    // Try to find JSON object if there's extra text
+    const jsonMatch=aiText.match(/\{[\s\S]*\}/);
+    if(jsonMatch){
+      aiText=jsonMatch[0];
+    }
+
     const plan=JSON.parse(aiText);
 
-    // Apply to form
+    // Validate plan structure
+    if(!plan.steps||!Array.isArray(plan.steps)||plan.steps.length===0){
+      throw new Error('Invalid plan structure: missing steps');
+    }
+
+    // Apply steps to form
     document.getElementById('gSteps').value=plan.steps.join('\n');
 
     // Save goal first
     await saveGoal();
 
     // Then add schedule blocks
-    if(plan.dailySchedule?.length>0){
+    if(plan.dailySchedule&&Array.isArray(plan.dailySchedule)&&plan.dailySchedule.length>0){
       const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
       plan.dailySchedule.forEach(block=>{
-        const h=parseFloat(block.time.split(':')[0])||12;
+        // Parse time to get hour
+        const timeMatch=block.time.match(/(\d+):(\d+)/);
+        const h=timeMatch?parseFloat(timeMatch[1])+(parseFloat(timeMatch[2]||0)/60):12;
+        
         sched.push({
           t:block.time,
           i:block.icon||'📌',
@@ -485,7 +577,7 @@ Return ONLY valid JSON, no markdown formatting:
     }
 
     // Add habits
-    if(plan.habits?.length>0){
+    if(plan.habits&&Array.isArray(plan.habits)&&plan.habits.length>0){
       const habs=JSON.parse(JSON.stringify(userData.habits||DEFAULT_HABITS));
       plan.habits.forEach(habit=>{
         habs.push({
@@ -498,7 +590,7 @@ Return ONLY valid JSON, no markdown formatting:
     }
 
     // Add weekly tasks
-    if(plan.weeklyTasks?.length===7){
+    if(plan.weeklyTasks&&Array.isArray(plan.weeklyTasks)&&plan.weeklyTasks.length===7){
       const weekly=JSON.parse(JSON.stringify(userData.weekly||DEFAULT_WEEKLY));
       weekly.push({
         a:`${area} - ${title}`,
@@ -512,7 +604,16 @@ Return ONLY valid JSON, no markdown formatting:
     
   }catch(e){
     console.error('AI generation error:',e);
-    toast('AI generation failed. Please add steps manually.','info');
+    let errorMsg='AI generation failed. Please add steps manually.';
+    
+    // More specific error messages
+    if(e.message.includes('JSON')){
+      errorMsg='AI response format error. Please add steps manually.';
+    }else if(e.message.includes('API error')){
+      errorMsg='API connection error. Please check console and add steps manually.';
+    }
+    
+    toast(errorMsg,'info');
     document.getElementById('manualSteps').style.display='block';
     document.getElementById('aiLoading').style.display='none';
   }finally{
@@ -522,7 +623,7 @@ Return ONLY valid JSON, no markdown formatting:
 
 window.saveGoal=async()=>{
   const title=document.getElementById('gTitle').value.trim();
-  const area=document.getElementById('gArea').value.trim();
+  const area=getAreaValue();
   const why=document.getElementById('gWhy').value.trim();
   const deadline=document.getElementById('gDeadline').value.trim();
   const measure=document.getElementById('gMeasure').value.trim();
@@ -542,7 +643,24 @@ window.saveGoal=async()=>{
 window.editGoal=(gi)=>{
   const g=(userData.goals||DEFAULT_GOALS)[gi];
   document.getElementById('gTitle').value=g.title;
-  document.getElementById('gArea').value=g.area;
+  
+  // Set area dropdown
+  const areaSelect=document.getElementById('gArea');
+  const customField=document.getElementById('customAreaField');
+  const customInput=document.getElementById('gAreaCustom');
+  
+  // Check if area is in predefined list
+  const predefinedAreas=['Health & Fitness 🧘','Career Growth 💼','Finances 💰','Relationships 🤝','Adventure & Travel ✈️','Fun & Hobbies 🎨','Community 🌍','Learning & Education 📚','Spirituality & Mindfulness 🧘‍♂️','Home & Environment 🏡'];
+  
+  if(predefinedAreas.includes(g.area)){
+    areaSelect.value=g.area;
+    customField.style.display='none';
+  }else{
+    areaSelect.value='Custom';
+    customInput.value=g.area;
+    customField.style.display='block';
+  }
+  
   document.getElementById('gWhy').value=g.why;
   document.getElementById('gDeadline').value=g.deadline;
   document.getElementById('gMeasure').value=g.measure;
@@ -554,7 +672,7 @@ window.editGoal=(gi)=>{
     goals[gi]={
       id:goals[gi].id,
       title:document.getElementById('gTitle').value.trim(),
-      area:document.getElementById('gArea').value.trim(),
+      area:getAreaValue(),
       why:document.getElementById('gWhy').value.trim(),
       deadline:document.getElementById('gDeadline').value.trim(),
       measure:document.getElementById('gMeasure').value.trim(),
@@ -565,7 +683,7 @@ window.editGoal=(gi)=>{
     await save({goals});
     closeModal('goalModal');
     document.getElementById('goalModalTitle').textContent='Add Goal';
-    document.getElementById('saveGoalBtn').onclick=saveGoal;
+    document.getElementById('saveGoalBtn').onclick=saveGoalWithAI;
     toast('Goal updated!');
   };
   openModal('goalModal');
@@ -1100,6 +1218,13 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
   background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s;outline:none;}
 .mfld input:focus,.mfld select:focus,.mfld textarea:focus{border-color:var(--accent);}
+.mfld select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  padding-right:36px;
+  cursor:pointer;
+}
 .mfld textarea{resize:vertical;min-height:76px;}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
 .btn-cancel{background:var(--bg2);border:1px solid var(--border);color:var(--text);
@@ -1293,9 +1418,29 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     </div>
 
     <div class="mfld"><label>Goal Title *</label><input id="gTitle"placeholder="e.g. Learn Spanish"></div>
-    <div class="mfld"><label>Area / Category *</label><input id="gArea"placeholder="e.g. Career Growth 💼"></div>
+    <div class="mfld">
+      <label>Area / Category *</label>
+      <select id="gArea"style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s;outline:none;">
+        <option value="">-- Select Category --</option>
+        <option value="Health & Fitness 🧘">Health & Fitness 🧘</option>
+        <option value="Career Growth 💼">Career Growth 💼</option>
+        <option value="Finances 💰">Finances 💰</option>
+        <option value="Relationships 🤝">Relationships 🤝</option>
+        <option value="Adventure & Travel ✈️">Adventure & Travel ✈️</option>
+        <option value="Fun & Hobbies 🎨">Fun & Hobbies 🎨</option>
+        <option value="Community 🌍">Community 🌍</option>
+        <option value="Learning & Education 📚">Learning & Education 📚</option>
+        <option value="Spirituality & Mindfulness 🧘‍♂️">Spirituality & Mindfulness 🧘‍♂️</option>
+        <option value="Home & Environment 🏡">Home & Environment 🏡</option>
+        <option value="Custom">✏️ Custom (type below)</option>
+      </select>
+    </div>
+    <div class="mfld"id="customAreaField"style="display:none;">
+      <label>Custom Area</label>
+      <input id="gAreaCustom"placeholder="e.g. Music Production 🎵">
+    </div>
     <div class="mfld"><label>Why does this matter?</label><input id="gWhy"placeholder="Your motivation"></div>
-    <div class="mfld"><label>Deadline</label><input id="gDeadline"placeholder="e.g. Dec 2026"></div>
+    <div class="mfld"><label>Deadline</label><input id="gDeadline"type="date"style="padding:9px 12px;"></div>
     <div class="mfld"><label>How will you measure it?</label><input id="gMeasure"placeholder="Success metric"></div>
     <div class="mfld"><label>Color</label><input id="gColor"type="color"value="#10b981"style="height:34px;padding:2px 6px;"></div>
     
