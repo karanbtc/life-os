@@ -584,7 +584,6 @@ window.openAddGoal=()=>{
   document.getElementById('gWhy').value='';
   document.getElementById('gDeadline').value='';
   document.getElementById('gMeasure').value='';
-  document.getElementById('gColor').value='#10b981';
   document.getElementById('gSteps').value='';
   document.getElementById('goalModalTitle').textContent='Add Goal';
   document.getElementById('saveGoalBtn').onclick=saveGoalWithAI;
@@ -613,6 +612,23 @@ function getAreaValue(){
     return document.getElementById('gAreaCustom').value.trim();
   }
   return area;
+}
+
+// Get color based on category
+function getColorForArea(area){
+  const colorMap = {
+    'Health & Fitness 🧘': '#10b981',
+    'Career Growth 💼': '#8b5cf6',
+    'Finances 💰': '#f59e0b',
+    'Relationships 🤝': '#ec4899',
+    'Adventure & Travel ✈️': '#06b6d4',
+    'Fun & Hobbies 🎨': '#14b8a6',
+    'Community 🌍': '#22c55e',
+    'Learning & Education 📚': '#6366f1',
+    'Spirituality & Mindfulness 🧘‍♂️': '#a855f7',
+    'Home & Environment 🏡': '#84cc16'
+  };
+  return colorMap[area] || '#6366f1'; // Default purple if not found
 }
 
 // Format deadline nicely
@@ -707,7 +723,7 @@ async function generateGoalWithAI(){
     const newGoal = {
       id: goalId,
       area,
-      color: document.getElementById('gColor').value,
+      color: getColorForArea(area), // Auto color based on category
       title,
       why: why || 'Personal growth',
       deadline: deadline || 'Dec 2026',
@@ -801,7 +817,7 @@ window.saveGoal=async()=>{
   const why=document.getElementById('gWhy').value.trim();
   const deadline=document.getElementById('gDeadline').value.trim();
   const measure=document.getElementById('gMeasure').value.trim();
-  const color=document.getElementById('gColor').value;
+  const color=getColorForArea(area); // Auto color based on category
   const stepsRaw=document.getElementById('gSteps').value.trim();
   if(!title||!area)return toast('Title and area required','info');
   const steps=stepsRaw?stepsRaw.split('\n').map(s=>s.trim()).filter(Boolean):[];
@@ -838,19 +854,19 @@ window.editGoal=(gi)=>{
   document.getElementById('gWhy').value=g.why;
   document.getElementById('gDeadline').value=g.deadline;
   document.getElementById('gMeasure').value=g.measure;
-  document.getElementById('gColor').value=g.color;
   document.getElementById('gSteps').value=g.steps.join('\n');
   document.getElementById('goalModalTitle').textContent='Edit Goal';
   document.getElementById('saveGoalBtn').onclick=async()=>{
     const goals=JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+    const area=getAreaValue();
     goals[gi]={
       id:goals[gi].id,
       title:document.getElementById('gTitle').value.trim(),
-      area:getAreaValue(),
+      area:area,
       why:document.getElementById('gWhy').value.trim(),
       deadline:document.getElementById('gDeadline').value.trim(),
       measure:document.getElementById('gMeasure').value.trim(),
-      color:document.getElementById('gColor').value,
+      color:getColorForArea(area), // Auto color based on category
       steps:document.getElementById('gSteps').value.trim().split('\n').map(s=>s.trim()).filter(Boolean),
       status:goals[gi].status
     };
@@ -1621,7 +1637,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <div class="mfld"><label>Why does this matter?</label><input id="gWhy"placeholder="Your motivation"></div>
     <div class="mfld"><label>Deadline</label><input id="gDeadline"type="date"style="padding:9px 12px;"></div>
     <div class="mfld"><label>How will you measure it?</label><input id="gMeasure"placeholder="Success metric"></div>
-    <div class="mfld"><label>Color</label><input id="gColor"type="color"value="#10b981"style="height:34px;padding:2px 6px;"></div>
     
     <div id="manualSteps">
       <div class="mfld"><label>Steps (one per line)</label><textarea id="gSteps"placeholder="Step 1&#10;Step 2&#10;Step 3"></textarea></div>
