@@ -40,68 +40,121 @@ const gProvider = new GoogleAuthProvider();
 // Force select account on Google sign-in
 gProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Default data template
+// Default data template - Universal goals for all new users
 const DEFAULT_GOALS = [
-  {id:'health',area:'Health & Fitness 🧘',color:'#10b981',title:'Reduce weight to 75kg',
-   why:'Build muscle, reduce fat, relieve pain — feel stronger every day',
-   deadline:'Mar 2026',status:'In Progress',
-   steps:['Identify correct diet plan','Identify correct exercise plan','Set proper daily routine','Be consistent with daily routine','Start swimming','Play one daily sport'],
-   measure:'Track body weight + strength weekly'},
-  {id:'ai',area:'Career Growth 💼',color:'#6366f1',title:'Learn AI & build agentic system (n8n)',
-   why:'Get real customers, career stability, move beyond just development',
-   deadline:'Mar 2026',status:'In Progress',
-   steps:['Research Agentic AI workflow','Research n8n workflow','Identify correct course','Understand theory deeply','Create practical examples','Build real problem-solver workflow'],
-   measure:'Working n8n workflow deployed'},
-  {id:'income',area:'Finances 💰',color:'#f59e0b',title:'Grow monthly income to ₹2L+',
-   why:'Build financial security for family and business expansion',
-   deadline:'Dec 2026',status:'In Progress',
-   steps:['Negotiate client rates','Add second client','Learn high-value tech skills','Upsell on current projects'],
-   measure:'Income crossing ₹2L/month consistently'}
+  {
+    id: 'financial-freedom',
+    area: 'Finances 💰',
+    color: '#f59e0b',
+    title: 'Achieve Financial Freedom',
+    why: 'Build wealth, eliminate debt, and become financially independent',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track savings and investments monthly'
+  },
+  {
+    id: 'physical-fitness',
+    area: 'Health & Fitness 🧘',
+    color: '#10b981',
+    title: 'Get Physically Fit',
+    why: 'Improve health, strength, energy, and overall well-being',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track weight, strength, and energy levels'
+  },
+  {
+    id: 'communication-skills',
+    area: 'Personal Growth 🌱',
+    color: '#6366f1',
+    title: 'Master Communication Skills',
+    why: 'Speak confidently, build relationships, and influence others',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track speaking practice and feedback'
+  },
+  {
+    id: 'career-success',
+    area: 'Career Growth 💼',
+    color: '#8b5cf6',
+    title: 'Advance Your Career',
+    why: 'Grow professionally, increase income, and achieve career goals',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track promotions, income, and skills learned'
+  },
+  {
+    id: 'travel-adventure',
+    area: 'Adventure & Travel ✈️',
+    color: '#ec4899',
+    title: 'Travel to Dream Destinations',
+    why: 'Explore new places, cultures, and create unforgettable memories',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track places visited and experiences'
+  },
+  {
+    id: 'play-sports',
+    area: 'Fun & Hobbies 🎨',
+    color: '#14b8a6',
+    title: 'Play a Sport Regularly',
+    why: 'Stay active, have fun, and enjoy competitive or recreational sports',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track games played and progress'
+  },
+  {
+    id: 'spiritual-growth',
+    area: 'Spirituality & Mindfulness 🧘‍♂️',
+    color: '#a855f7',
+    title: 'Develop Spiritual Awareness',
+    why: 'Find inner peace, purpose, and deeper meaning in life',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [],
+    measure: 'Track meditation practice and insights'
+  }
 ];
 
 const DEFAULT_SCHEDULE = [
-  {t:'6:30–6:45 AM',i:'💧',a:'Wake-Up & Hydrate',d:'Warm water with fennel, fenugreek, cumin & ginger. Before phone!',g:'Health',p:'High',h:6.5},
-  {t:'6:45–7:00 AM',i:'🧘',a:'Morning Mobility',d:'Spine health + mobility routine.',g:'Health',p:'High',h:6.75},
-  {t:'7:00–7:30 AM',i:'💪',a:'Strength Training',d:'Bodyweight calisthenics — no equipment. Focus on form.',g:'Health',p:'Critical',h:7},
-  {t:'7:30–8:00 AM',i:'🥗',a:'Healthy Breakfast',d:'Oatmeal / Poha / Idli / Upma — high protein.',g:'Health',p:'High',h:7.5},
-  {t:'8:00–9:30 AM',i:'🧠',a:'Deep Work Block 1',d:'Most complex task. Phone off.',g:'Career',p:'Critical',h:8},
-  {t:'9:30–10:00 AM',i:'🗣️',a:'Communication Practice',d:'Watch video OR record 2-min speaking.',g:'Communication',p:'High',h:9.5},
-  {t:'10 AM–12 PM',i:'💻',a:'Deep Work Block 2',d:'Career skill building — coding / AI.',g:'AI & Career',p:'Critical',h:10},
-  {t:'12–1:30 PM',i:'📋',a:'Light Work',d:'Emails, Slack, code review.',g:'Business',p:'Medium',h:12},
-  {t:'1:30–2:30 PM',i:'🍱',a:'Family Lunch',d:'No screens. Be present.',g:'Relationships',p:'High',h:13.5},
-  {t:'2:30–3:00 PM',i:'🚶',a:'Walk',d:'Light walk + sunlight.',g:'Health',p:'Medium',h:14.5},
-  {t:'3:00–5:30 PM',i:'🔧',a:'Deep Work Block 3',d:'Dev, business tasks, or AI project.',g:'Career / AI',p:'Critical',h:15},
-  {t:'5:30–6:00 PM',i:'🏓',a:'Sport',d:'Play any active sport.',g:'Health',p:'High',h:17.5},
-  {t:'6:00–6:30 PM',i:'🔥',a:'Core Workout',d:'Core exercises routine.',g:'Health',p:'High',h:18},
-  {t:'6:30–7:00 PM',i:'📓',a:'Reflection',d:'Fill tracker + record 60-sec video.',g:'All Goals',p:'High',h:18.5},
-  {t:'7:00–7:30 PM',i:'🍽️',a:'Dinner',d:'Light healthy dinner.',g:'Health',p:'Medium',h:19},
-  {t:'7:30–8:30 PM',i:'📚',a:'Learning',d:'AI course / tutorials.',g:'AI & Career',p:'Critical',h:19.5},
-  {t:'8:30–10 PM',i:'🏠',a:'Family Time',d:'Quality time with family.',g:'Relationships',p:'High',h:20.5},
-  {t:'10–10:30 PM',i:'🌙',a:'Mobility',d:'Evening mobility practice.',g:'Health',p:'Medium',h:22},
-  {t:'10:30 PM+',i:'🌟',a:'Wind Down',d:'Meditate → read → gratitude.',g:'Relationships',p:'High',h:22.5}
+  {t:'7:00-7:30 AM',i:'🌅',a:'Morning Routine',d:'Wake up, hydrate, and prepare for the day',g:'Health',p:'High',h:7},
+  {t:'7:30-8:00 AM',i:'🥗',a:'Healthy Breakfast',d:'Nutritious meal to start the day',g:'Health',p:'High',h:7.5},
+  {t:'9:00-12:00 PM',i:'💼',a:'Focus Work Block',d:'Deep work on most important tasks',g:'Career',p:'Critical',h:9},
+  {t:'12:00-1:00 PM',i:'🍱',a:'Lunch Break',d:'Healthy meal and rest',g:'Health',p:'Medium',h:12},
+  {t:'2:00-5:00 PM',i:'💻',a:'Productive Work',d:'Continue tasks and meetings',g:'Career',p:'High',h:14},
+  {t:'6:00-7:00 PM',i:'🏃',a:'Exercise/Sport',d:'Physical activity or sport',g:'Health',p:'High',h:18},
+  {t:'7:00-8:00 PM',i:'🍽️',a:'Dinner',d:'Healthy evening meal',g:'Health',p:'Medium',h:19},
+  {t:'8:00-9:00 PM',i:'📚',a:'Learning Time',d:'Read, learn new skills, or personal development',g:'Growth',p:'High',h:20},
+  {t:'9:00-10:00 PM',i:'🏠',a:'Family/Personal Time',d:'Quality time with loved ones or relaxation',g:'Personal',p:'High',h:21},
+  {t:'10:00-10:30 PM',i:'🧘',a:'Wind Down',d:'Meditation, reflection, or light reading',g:'Mindfulness',p:'Medium',h:22}
 ];
 
 const DEFAULT_HABITS = [
-  {id:'workout',i:'💪',l:'Morning workout / calisthenics'},
+  {id:'exercise',i:'💪',l:'Exercise or physical activity (30+ min)'},
   {id:'water',i:'💧',l:'Drink 8 glasses of water'},
-  {id:'breakfast',i:'🥗',l:'Healthy breakfast (no junk)'},
-  {id:'ai_learn',i:'🤖',l:'30 min AI / n8n learning'},
-  {id:'deepwork',i:'💼',l:'Deep work block (8–10 AM)'},
-  {id:'comm',i:'🗣️',l:'Communication practice'},
-  {id:'sport',i:'🏓',l:'Evening sport'},
-  {id:'reflect',i:'📓',l:'Daily reflection + tracker'},
-  {id:'read',i:'📚',l:'Read 10 pages'},
-  {id:'sleep',i:'🌙',l:'Sleep by 11:30 PM'}
+  {id:'healthy-eating',i:'🥗',l:'Eat healthy meals (no junk food)'},
+  {id:'learning',i:'📚',l:'Learn something new (20+ min)'},
+  {id:'work-focus',i:'💼',l:'Deep work focus block (2+ hours)'},
+  {id:'communication',i:'🗣️',l:'Practice communication or social connection'},
+  {id:'financial',i:'💰',l:'Track expenses or review finances'},
+  {id:'mindfulness',i:'🧘',l:'Meditation or mindfulness practice (10 min)'},
+  {id:'gratitude',i:'🙏',l:'Write 3 things you\'re grateful for'},
+  {id:'sleep',i:'🌙',l:'Sleep by 11 PM (7-8 hours)'}
 ];
 
 const DEFAULT_WEEKLY = [
-  {a:'💪 Health',t:['Workout\n+ Weigh in','Workout\n+ Track food','Workout\n+ Swimming','Workout\n+ Weigh in','Workout\n+ Track food','Sport\n+ Weekly weigh','Rest\n+ Light walk']},
-  {a:'🤖 AI',t:['Research concept','Tutorial\n(30 min)','Build flow','Study theory','Example','Real project','Review week']},
-  {a:'💼 Work',t:['Deep work\n(Code)','Deep work\n+ Meeting','Deep work\n(Code)','Deep work\n+ Update','Deep work\n(Review)','Catch up\n+ Plan','Rest']},
-  {a:'🗣️ Comm',t:['Watch video\nRecord','Practice','Watch video\nRecord','Call\n(engage)','Watch video\nRecord','Review videos','Watch talk']},
-  {a:'💰 Finance',t:['Check\n+ Expenses','Income vs\ntarget','Side task','Savings\ncheck','Side income','Weekly\nreview','Plan\nbudget']},
-  {a:'❤️ Family',t:['Quality time','Call parents','Quality time','Help\nmember','Quality time','Outing','Special\ntime']},
-  {a:'📚 Growth',t:['Read 10pg','Reflect\n+ journal','Read 10pg','Reflect\n+ journal','Read 10pg','Goal\nreview','Set\nintentions']}
+  {a:'💰 Financial',t:['Review budget','Track expenses','Plan savings','Income check','Investment review','Weekly summary','Plan next week']},
+  {a:'💪 Fitness',t:['Workout + track','Exercise','Active day','Workout + track','Exercise','Sport/activity','Rest & recovery']},
+  {a:'🗣️ Communication',t:['Practice speaking','Social interaction','Practice speaking','Connect with others','Practice speaking','Group activity','Reflect & improve']},
+  {a:'🚀 Career',t:['Focus on goals','Skill building','Network/connect','Productive work','Skill building','Review progress','Plan next week']},
+  {a:'✈️ Travel',t:['Research destinations','Plan trip','Save for travel','Explore local','Plan trip','Weekend adventure','Dream & plan']},
+  {a:'🏃 Sports',t:['Play sport','Practice','Play sport','Active rest','Play sport','Competition/game','Rest & reflect']},
+  {a:'🧘 Spiritual',t:['Meditate 10min','Mindful practice','Meditate 10min','Read spiritual','Meditate 10min','Reflection','Gratitude practice']}
 ];
 
 const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -136,6 +189,7 @@ async function loadUserData(uid) {
   const ref=doc(db,'users',uid);
   const snap=await getDoc(ref);
   if(!snap.exists()) {
+    // New user - create profile with universal goals
     const fresh={
       goals:JSON.parse(JSON.stringify(DEFAULT_GOALS)),
       schedule:JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)),
@@ -147,6 +201,11 @@ async function loadUserData(uid) {
     };
     await setDoc(ref,fresh);
     userData=fresh;
+    
+    // Show welcome message for new users
+    setTimeout(() => {
+      toast('🎉 Welcome to Life OS! We\'ve added 7 common goals to get you started. Edit them or use ✨ AI Assistant to generate personalized plans!', 'info', 8000);
+    }, 500);
   } else {
     userData=snap.data();
   }
@@ -254,10 +313,10 @@ window.sp=(name)=>{
 };
 
 // Toast
-function toast(msg,type='ok'){
+function toast(msg,type='ok',duration=2200){
   const e=document.getElementById('toast');
   e.textContent=msg;e.className=`toast show ${type}`;
-  clearTimeout(e._t);e._t=setTimeout(()=>e.className='toast',2200);
+  clearTimeout(e._t);e._t=setTimeout(()=>e.className='toast',duration);
 }
 
 // Stats
