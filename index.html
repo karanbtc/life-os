@@ -16,10 +16,10 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-         signOut, onAuthStateChanged, updateProfile,
+         signOut, onAuthStateChanged, updateProfile, deleteUser,
          GoogleAuthProvider, signInWithPopup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, deleteDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // Firebase config
@@ -171,39 +171,39 @@ const DEFAULT_GOALS = [
 ];
 
 const DEFAULT_SCHEDULE = [
-  {t:'7:00-7:30 AM',i:'🌅',a:'Morning Routine',d:'Wake up, hydrate, and prepare for the day',g:'Health',p:'High',h:7},
-  {t:'7:30-8:00 AM',i:'🥗',a:'Healthy Breakfast',d:'Nutritious meal to start the day',g:'Health',p:'High',h:7.5},
-  {t:'9:00-12:00 PM',i:'💼',a:'Focus Work Block',d:'Deep work on most important tasks',g:'Career',p:'Critical',h:9},
-  {t:'12:00-1:00 PM',i:'🍱',a:'Lunch Break',d:'Healthy meal and rest',g:'Health',p:'Medium',h:12},
-  {t:'2:00-5:00 PM',i:'💻',a:'Productive Work',d:'Continue tasks and meetings',g:'Career',p:'High',h:14},
-  {t:'6:00-7:00 PM',i:'🏃',a:'Exercise/Sport',d:'Physical activity or sport',g:'Health',p:'High',h:18},
-  {t:'7:00-8:00 PM',i:'🍽️',a:'Dinner',d:'Healthy evening meal',g:'Health',p:'Medium',h:19},
-  {t:'8:00-9:00 PM',i:'📚',a:'Learning Time',d:'Read, learn new skills, or personal development',g:'Growth',p:'High',h:20},
-  {t:'9:00-10:00 PM',i:'🏠',a:'Family/Personal Time',d:'Quality time with loved ones or relaxation',g:'Personal',p:'High',h:21},
-  {t:'10:00-10:30 PM',i:'🧘',a:'Wind Down',d:'Meditation, reflection, or light reading',g:'Mindfulness',p:'Medium',h:22}
+  {t:'7:00-7:30 AM',i:'🌅',a:'Morning Routine',d:'Wake up, hydrate, and prepare for the day',g:'Health',p:'High',h:7,goalId:'physical-fitness'},
+  {t:'7:30-8:00 AM',i:'🥗',a:'Healthy Breakfast',d:'Nutritious meal to start the day',g:'Health',p:'High',h:7.5,goalId:'physical-fitness'},
+  {t:'9:00-12:00 PM',i:'💼',a:'Focus Work Block',d:'Deep work on most important tasks',g:'Career',p:'Critical',h:9,goalId:'career-success'},
+  {t:'12:00-1:00 PM',i:'🍱',a:'Lunch Break',d:'Healthy meal and rest',g:'Health',p:'Medium',h:12,goalId:'physical-fitness'},
+  {t:'2:00-5:00 PM',i:'💻',a:'Productive Work',d:'Continue tasks and meetings',g:'Career',p:'High',h:14,goalId:'career-success'},
+  {t:'6:00-7:00 PM',i:'🏃',a:'Exercise/Sport',d:'Physical activity or sport',g:'Health',p:'High',h:18,goalId:'play-sports'},
+  {t:'7:00-8:00 PM',i:'🍽️',a:'Dinner',d:'Healthy evening meal',g:'Health',p:'Medium',h:19,goalId:'physical-fitness'},
+  {t:'8:00-9:00 PM',i:'📚',a:'Learning Time',d:'Read, learn new skills, or personal development',g:'Growth',p:'High',h:20,goalId:'career-success'},
+  {t:'9:00-10:00 PM',i:'🏠',a:'Family/Personal Time',d:'Quality time with loved ones or relaxation',g:'Personal',p:'High',h:21,goalId:'spiritual-growth'},
+  {t:'10:00-10:30 PM',i:'🧘',a:'Wind Down',d:'Meditation, reflection, or light reading',g:'Mindfulness',p:'Medium',h:22,goalId:'spiritual-growth'}
 ];
 
 const DEFAULT_HABITS = [
-  {id:'exercise',i:'💪',l:'Exercise or physical activity (30+ min)'},
-  {id:'water',i:'💧',l:'Drink 8 glasses of water'},
-  {id:'healthy-eating',i:'🥗',l:'Eat healthy meals (no junk food)'},
-  {id:'learning',i:'📚',l:'Learn something new (20+ min)'},
-  {id:'work-focus',i:'💼',l:'Deep work focus block (2+ hours)'},
-  {id:'communication',i:'🗣️',l:'Practice communication or social connection'},
-  {id:'financial',i:'💰',l:'Track expenses or review finances'},
-  {id:'mindfulness',i:'🧘',l:'Meditation or mindfulness practice (10 min)'},
-  {id:'gratitude',i:'🙏',l:'Write 3 things you\'re grateful for'},
-  {id:'sleep',i:'🌙',l:'Sleep by 11 PM (7-8 hours)'}
+  {id:'exercise',i:'💪',l:'Exercise or physical activity (30+ min)',goalId:'physical-fitness'},
+  {id:'water',i:'💧',l:'Drink 8 glasses of water',goalId:'physical-fitness'},
+  {id:'healthy-eating',i:'🥗',l:'Eat healthy meals (no junk food)',goalId:'physical-fitness'},
+  {id:'learning',i:'📚',l:'Learn something new (20+ min)',goalId:'career-success'},
+  {id:'work-focus',i:'💼',l:'Deep work focus block (2+ hours)',goalId:'career-success'},
+  {id:'communication',i:'🗣️',l:'Practice communication or social connection',goalId:'communication-skills'},
+  {id:'financial',i:'💰',l:'Track expenses or review finances',goalId:'financial-freedom'},
+  {id:'mindfulness',i:'🧘',l:'Meditation or mindfulness practice (10 min)',goalId:'spiritual-growth'},
+  {id:'gratitude',i:'🙏',l:'Write 3 things you\'re grateful for',goalId:'spiritual-growth'},
+  {id:'sleep',i:'🌙',l:'Sleep by 11 PM (7-8 hours)',goalId:'physical-fitness'}
 ];
 
 const DEFAULT_WEEKLY = [
-  {a:'💰 Financial',t:['Review budget','Track expenses','Plan savings','Income check','Investment review','Weekly summary','Plan next week']},
-  {a:'💪 Fitness',t:['Workout + track','Exercise','Active day','Workout + track','Exercise','Sport/activity','Rest & recovery']},
-  {a:'🗣️ Communication',t:['Practice speaking','Social interaction','Practice speaking','Connect with others','Practice speaking','Group activity','Reflect & improve']},
-  {a:'🚀 Career',t:['Focus on goals','Skill building','Network/connect','Productive work','Skill building','Review progress','Plan next week']},
-  {a:'✈️ Travel',t:['Research destinations','Plan trip','Save for travel','Explore local','Plan trip','Weekend adventure','Dream & plan']},
-  {a:'🏃 Sports',t:['Play sport','Practice','Play sport','Active rest','Play sport','Competition/game','Rest & reflect']},
-  {a:'🧘 Spiritual',t:['Meditate 10min','Mindful practice','Meditate 10min','Read spiritual','Meditate 10min','Reflection','Gratitude practice']}
+  {a:'💰 Financial',t:['Review budget','Track expenses','Plan savings','Income check','Investment review','Weekly summary','Plan next week'],goalId:'financial-freedom'},
+  {a:'💪 Fitness',t:['Workout + track','Exercise','Active day','Workout + track','Exercise','Sport/activity','Rest & recovery'],goalId:'physical-fitness'},
+  {a:'🗣️ Communication',t:['Practice speaking','Social interaction','Practice speaking','Connect with others','Practice speaking','Group activity','Reflect & improve'],goalId:'communication-skills'},
+  {a:'🚀 Career',t:['Focus on goals','Skill building','Network/connect','Productive work','Skill building','Review progress','Plan next week'],goalId:'career-success'},
+  {a:'✈️ Travel',t:['Research destinations','Plan trip','Save for travel','Explore local','Plan trip','Weekend adventure','Dream & plan'],goalId:'travel-adventure'},
+  {a:'🏃 Sports',t:['Play sport','Practice','Play sport','Active rest','Play sport','Competition/game','Rest & reflect'],goalId:'play-sports'},
+  {a:'🧘 Spiritual',t:['Meditate 10min','Mindful practice','Meditate 10min','Read spiritual','Meditate 10min','Reflection','Gratitude practice'],goalId:'spiritual-growth'}
 ];
 
 const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -316,6 +316,58 @@ window.doGoogle=async()=>{
 };
 
 window.doLogout=async()=>{ await signOut(auth); };
+
+window.deleteAccount=async()=>{
+  const confirmMsg = `⚠️ DELETE ACCOUNT?
+
+This will PERMANENTLY delete:
+• Your account
+• All goals and progress
+• All schedule, habits, and weekly data
+• All tracking history
+
+This action CANNOT be undone!
+
+Type "DELETE" to confirm:`;
+  
+  const userInput = prompt(confirmMsg);
+  
+  if(userInput !== 'DELETE'){
+    if(userInput !== null){
+      toast('Account deletion cancelled', 'info');
+    }
+    return;
+  }
+  
+  try {
+    const user = auth.currentUser;
+    if(!user){
+      toast('No user logged in', 'info');
+      return;
+    }
+    
+    // Delete Firestore data first
+    const userDocRef = doc(db, 'users', user.uid);
+    await deleteDoc(userDocRef);
+    
+    // Then delete the user account
+    await deleteUser(user);
+    
+    toast('Account deleted successfully');
+    
+    // Redirect to auth page (logout happens automatically)
+    
+  } catch(e) {
+    console.error('Delete account error:', e);
+    
+    // Handle re-authentication requirement
+    if(e.code === 'auth/requires-recent-login'){
+      toast('For security, please log out and log back in, then try deleting your account again.', 'info', 6000);
+    } else {
+      toast('Failed to delete account: ' + (e.message || 'Unknown error'), 'info', 4000);
+    }
+  }
+};
 
 function friendlyErr(code){
   const map={
@@ -480,11 +532,45 @@ window.addStep=async(gid)=>{
 };
 
 window.deleteGoal=async(gi)=>{
-  if(!confirm('Delete this goal?'))return;
-  const goals=JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
-  goals.splice(gi,1);
-  await save({goals});
-  toast('Goal deleted');
+  const goal = (userData.goals||DEFAULT_GOALS)[gi];
+  if(!goal)return;
+  
+  const goalId = goal.id;
+  
+  // Count related items that will be deleted
+  const relatedSchedule = (userData.schedule||[]).filter(s => s.goalId === goalId).length;
+  const relatedHabits = (userData.habits||[]).filter(h => h.goalId === goalId).length;
+  const relatedWeekly = (userData.weekly||[]).filter(w => w.goalId === goalId).length;
+  
+  let msg = `Delete "${goal.title}"?`;
+  
+  if(relatedSchedule > 0 || relatedHabits > 0 || relatedWeekly > 0){
+    msg += `\n\nThis will also delete:`;
+    if(relatedSchedule > 0) msg += `\n• ${relatedSchedule} schedule block(s)`;
+    if(relatedHabits > 0) msg += `\n• ${relatedHabits} habit(s)`;
+    if(relatedWeekly > 0) msg += `\n• ${relatedWeekly} weekly plan(s)`;
+    msg += `\n\n(Preset and manually-added items will remain)`;
+  }
+  
+  if(!confirm(msg))return;
+  
+  // Delete goal
+  const goals = JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+  goals.splice(gi, 1);
+  
+  // Delete goal steps
+  const goalSteps = {...(userData.goalSteps||{})};
+  delete goalSteps[goalId];
+  
+  // CASCADE DELETE: Remove only items with this goalId
+  const schedule = (userData.schedule||DEFAULT_SCHEDULE).filter(s => s.goalId !== goalId);
+  const habits = (userData.habits||DEFAULT_HABITS).filter(h => h.goalId !== goalId);
+  const weekly = (userData.weekly||DEFAULT_WEEKLY).filter(w => w.goalId !== goalId);
+  
+  await save({goals, goalSteps, schedule, habits, weekly});
+  
+  const deletedCount = relatedSchedule + relatedHabits + relatedWeekly;
+  toast(deletedCount > 0 ? `Goal and ${deletedCount} related item(s) deleted` : 'Goal deleted');
 };
 
 window.openAddGoal=()=>{
@@ -616,13 +702,25 @@ async function generateGoalWithAI(){
       throw new Error('Invalid plan structure received');
     }
 
-    // Apply steps to form
-    document.getElementById('gSteps').value = plan.steps.join('\n');
+    // Save goal first to get the goal ID
+    const goalId = 'g' + Date.now();
+    const newGoal = {
+      id: goalId,
+      area,
+      color: document.getElementById('gColor').value,
+      title,
+      why: why || 'Personal growth',
+      deadline: deadline || 'Dec 2026',
+      status: 'In Progress',
+      steps: plan.steps,
+      measure: document.getElementById('gMeasure').value.trim() || 'Track progress'
+    };
+    
+    const goals = JSON.parse(JSON.stringify(userData.goals || DEFAULT_GOALS));
+    goals.push(newGoal);
+    await save({goals});
 
-    // Save goal first
-    await saveGoal();
-
-    // Then add schedule blocks
+    // Then add schedule blocks with goalId tag
     if(plan.dailySchedule && Array.isArray(plan.dailySchedule) && plan.dailySchedule.length > 0){
       const sched = JSON.parse(JSON.stringify(userData.schedule || DEFAULT_SCHEDULE));
       plan.dailySchedule.forEach(block => {
@@ -643,32 +741,35 @@ async function generateGoalWithAI(){
           d: block.details || '',
           g: area,
           p: 'High',
-          h: h
+          h: h,
+          goalId: goalId  // Tag with goal ID for cascade delete
         });
       });
       sched.sort((a, b) => a.h - b.h);
       await save({schedule: sched});
     }
 
-    // Add habits
+    // Add habits with goalId tag
     if(plan.habits && Array.isArray(plan.habits) && plan.habits.length > 0){
       const habs = JSON.parse(JSON.stringify(userData.habits || DEFAULT_HABITS));
       plan.habits.forEach(habit => {
         habs.push({
           id: 'h' + Date.now() + Math.random(),
           i: habit.icon || '⭐',
-          l: habit.label
+          l: habit.label,
+          goalId: goalId  // Tag with goal ID for cascade delete
         });
       });
       await save({habits: habs});
     }
 
-    // Add weekly tasks
+    // Add weekly tasks with goalId tag
     if(plan.weeklyTasks && Array.isArray(plan.weeklyTasks) && plan.weeklyTasks.length === 7){
       const weekly = JSON.parse(JSON.stringify(userData.weekly || DEFAULT_WEEKLY));
       weekly.push({
         a: area,
-        t: plan.weeklyTasks
+        t: plan.weeklyTasks,
+        goalId: goalId  // Tag with goal ID for cascade delete
       });
       await save({weekly});
     }
@@ -1128,6 +1229,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .logout-btn{font-size:12px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);
   padding:4px 9px;border-radius:8px;cursor:pointer;transition:all .15s;white-space:nowrap;}
 .logout-btn:hover{color:var(--accent);border-color:var(--accent);}
+.delete-account-btn{font-size:16px;color:var(--muted);background:var(--bg2);border:1px solid var(--border);
+  padding:4px 8px;border-radius:8px;cursor:pointer;transition:all .15s;opacity:0.6;}
+.delete-account-btn:hover{opacity:1;color:#ef4444;border-color:#ef4444;background:color-mix(in srgb,#ef4444 10%,transparent);}
 .tlbl{font-size:14px;}
 .ttog{width:36px;height:20px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);
   cursor:pointer;position:relative;transition:background .3s;flex-shrink:0;}
@@ -1330,6 +1434,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   .dpill,.uname{display:none;}
   .avatar{width:26px;height:26px;font-size:12px;}
   .logout-btn{padding:4px 8px;font-size:11px;}
+  .delete-account-btn{padding:4px 6px;font-size:14px;}
   .sb2{grid-template-columns:1fr;gap:8px;}
   .st{font-size:10px;margin-bottom:4px;}
   .pt{align-self:flex-start;margin-top:4px;}
@@ -1418,6 +1523,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
       <span class="tlbl"id="tlbl">🌙</span>
       <button class="ttog"onclick="toggleTheme()"></button>
       <button class="logout-btn"onclick="doLogout()">Sign out</button>
+      <button class="delete-account-btn"onclick="deleteAccount()"title="Delete Account">🗑️</button>
     </div>
   </header>
 
