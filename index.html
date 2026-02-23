@@ -274,7 +274,7 @@ async function loadUserData(uid) {
       const pg=document.querySelector('.pg.on');
       if(pg){
         const name=pg.id.replace('pg-','');
-        const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly};
+        const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly,reminders:renderReminders};
         renders[name]?.();
       }
     }
@@ -452,7 +452,7 @@ window.sp=(name)=>{
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.getElementById('pg-'+name).classList.add('on');
   [...document.querySelectorAll('.nb')].find(b=>b.getAttribute('onclick')?.includes(name))?.classList.add('on');
-  const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly};
+  const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly,reminders:renderReminders};
   renders[name]?.();
 };
 
@@ -719,7 +719,7 @@ function renderDashboard(){
       </div></div>`;
   }).join('');
   renderGoals();
-  renderSchedule();
+  renderSched();
   renderHabits();
   renderWeekly();
   renderReminders();
