@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#060a12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Life OS">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Life OS — 2026 Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged, updateProfile, deleteUser,
+         GoogleAuthProvider, signInWithPopup }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, deleteDoc }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyD8SMq4VS8Af06eplaFDYkB4pf5BHjtF0s",
+  authDomain: "life-os-6a86d.firebaseapp.com",
+  projectId: "life-os-6a86d",
+  storageBucket: "life-os-6a86d.firebasestorage.app",
+  messagingSenderId: "828240693900",
+  appId: "1:828240693900:web:6a44a800282ec6d71fc9a9"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+const gProvider = new GoogleAuthProvider();
+
+// Force select account on Google sign-in
+gProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Default data template - Universal goals for all new users
+const DEFAULT_GOALS = [
+  {
+    id: 'financial-freedom',
+    area: 'Finances 💰',
+    color: '#f59e0b',
+    title: 'Achieve Financial Freedom',
+    why: 'Build wealth, eliminate debt, and become financially independent',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Create monthly budget and track all expenses',
+      'Build emergency fund (3-6 months expenses)',
+      'Pay off high-interest debt systematically',
+      'Start investing (stocks, mutual funds, or retirement accounts)',
+      'Increase income through side hustles or career growth',
+      'Review and adjust financial plan quarterly'
+    ],
+    measure: 'Track savings and investments monthly'
+  },
+  {
+    id: 'physical-fitness',
+    area: 'Health & Fitness 🧘',
+    color: '#10b981',
+    title: 'Get Physically Fit',
+    why: 'Improve health, strength, energy, and overall well-being',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Consult doctor and assess current fitness level',
+      'Choose exercise routine (gym, home workouts, or sports)',
+      'Start with 3-4 workouts per week',
+      'Follow healthy nutrition plan',
+      'Track progress weekly (weight, measurements, energy)',
+      'Gradually increase intensity and stay consistent'
+    ],
+    measure: 'Track weight, strength, and energy levels'
+  },
+  {
+    id: 'communication-skills',
+    area: 'Personal Growth 🌱',
+    color: '#6366f1',
+    title: 'Master Communication Skills',
+    why: 'Speak confidently, build relationships, and influence others',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Practice speaking daily (record yourself)',
+      'Read communication and public speaking books',
+      'Join speaking club or group (Toastmasters, etc)',
+      'Engage in conversations and social activities',
+      'Watch and analyze great speakers',
+      'Get feedback and continuously improve'
+    ],
+    measure: 'Track speaking practice and feedback'
+  },
+  {
+    id: 'career-success',
+    area: 'Career Growth 💼',
+    color: '#8b5cf6',
+    title: 'Advance Your Career',
+    why: 'Grow professionally, increase income, and achieve career goals',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Set clear career goals and milestones',
+      'Learn high-value skills in your field',
+      'Network with professionals and mentors',
+      'Take on challenging projects and responsibilities',
+      'Track achievements and update resume/portfolio',
+      'Seek promotions or new opportunities'
+    ],
+    measure: 'Track promotions, income, and skills learned'
+  },
+  {
+    id: 'travel-adventure',
+    area: 'Adventure & Travel ✈️',
+    color: '#ec4899',
+    title: 'Travel to Dream Destinations',
+    why: 'Explore new places, cultures, and create unforgettable memories',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Create bucket list of destinations',
+      'Research and plan trips (budget, itinerary)',
+      'Save money specifically for travel',
+      'Book flights and accommodations',
+      'Explore local culture and attractions',
+      'Document experiences and memories'
+    ],
+    measure: 'Track places visited and experiences'
+  },
+  {
+    id: 'play-sports',
+    area: 'Fun & Hobbies 🎨',
+    color: '#14b8a6',
+    title: 'Play a Sport Regularly',
+    why: 'Stay active, have fun, and enjoy competitive or recreational sports',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Choose sport or activity you enjoy',
+      'Find local clubs, groups, or facilities',
+      'Schedule regular practice (2-3 times per week)',
+      'Learn techniques and improve skills',
+      'Play games or compete when ready',
+      'Track progress and celebrate improvements'
+    ],
+    measure: 'Track games played and progress'
+  },
+  {
+    id: 'spiritual-growth',
+    area: 'Spirituality & Mindfulness 🧘‍♂️',
+    color: '#a855f7',
+    title: 'Develop Spiritual Awareness',
+    why: 'Find inner peace, purpose, and deeper meaning in life',
+    deadline: 'Dec 2026',
+    status: 'Not Started',
+    steps: [
+      'Start daily meditation practice (10+ minutes)',
+      'Read spiritual or philosophical books',
+      'Practice gratitude and mindfulness',
+      'Connect with spiritual community or teacher',
+      'Reflect on life purpose and values',
+      'Attend retreats or spiritual workshops'
+    ],
+    measure: 'Track meditation practice and insights'
+  }
+];
+
+const DEFAULT_SCHEDULE = [
+  {t:'7:00-7:30 AM',i:'🌅',a:'Morning Routine',d:'Wake up, hydrate, and prepare for the day',g:'Health',p:'High',h:7,goalId:'physical-fitness'},
+  {t:'7:30-8:00 AM',i:'🥗',a:'Healthy Breakfast',d:'Nutritious meal to start the day',g:'Health',p:'High',h:7.5,goalId:'physical-fitness'},
+  {t:'9:00-12:00 PM',i:'💼',a:'Focus Work Block',d:'Deep work on most important tasks',g:'Career',p:'Critical',h:9,goalId:'career-success'},
+  {t:'12:00-1:00 PM',i:'🍱',a:'Lunch Break',d:'Healthy meal and rest',g:'Health',p:'Medium',h:12,goalId:'physical-fitness'},
+  {t:'2:00-5:00 PM',i:'💻',a:'Productive Work',d:'Continue tasks and meetings',g:'Career',p:'High',h:14,goalId:'career-success'},
+  {t:'6:00-7:00 PM',i:'🏃',a:'Exercise/Sport',d:'Physical activity or sport',g:'Health',p:'High',h:18,goalId:'play-sports'},
+  {t:'7:00-8:00 PM',i:'🍽️',a:'Dinner',d:'Healthy evening meal',g:'Health',p:'Medium',h:19,goalId:'physical-fitness'},
+  {t:'8:00-9:00 PM',i:'📚',a:'Learning Time',d:'Read, learn new skills, or personal development',g:'Growth',p:'High',h:20,goalId:'career-success'},
+  {t:'9:00-10:00 PM',i:'🏠',a:'Family/Personal Time',d:'Quality time with loved ones or relaxation',g:'Personal',p:'High',h:21,goalId:'spiritual-growth'},
+  {t:'10:00-10:30 PM',i:'🧘',a:'Wind Down',d:'Meditation, reflection, or light reading',g:'Mindfulness',p:'Medium',h:22,goalId:'spiritual-growth'}
+];
+
+const DEFAULT_HABITS = [
+  {id:'exercise',i:'💪',l:'Exercise or physical activity (30+ min)',goalId:'physical-fitness'},
+  {id:'water',i:'💧',l:'Drink 8 glasses of water',goalId:'physical-fitness'},
+  {id:'healthy-eating',i:'🥗',l:'Eat healthy meals (no junk food)',goalId:'physical-fitness'},
+  {id:'learning',i:'📚',l:'Learn something new (20+ min)',goalId:'career-success'},
+  {id:'work-focus',i:'💼',l:'Deep work focus block (2+ hours)',goalId:'career-success'},
+  {id:'communication',i:'🗣️',l:'Practice communication or social connection',goalId:'communication-skills'},
+  {id:'financial',i:'💰',l:'Track expenses or review finances',goalId:'financial-freedom'},
+  {id:'mindfulness',i:'🧘',l:'Meditation or mindfulness practice (10 min)',goalId:'spiritual-growth'},
+  {id:'gratitude',i:'🙏',l:'Write 3 things you\'re grateful for',goalId:'spiritual-growth'},
+  {id:'sleep',i:'🌙',l:'Sleep by 11 PM (7-8 hours)',goalId:'physical-fitness'}
+];
+
+const DEFAULT_WEEKLY = [
+  {a:'💰 Financial',t:['Review budget','Track expenses','Plan savings','Income check','Investment review','Weekly summary','Plan next week'],goalId:'financial-freedom'},
+  {a:'💪 Fitness',t:['Workout + track','Exercise','Active day','Workout + track','Exercise','Sport/activity','Rest & recovery'],goalId:'physical-fitness'},
+  {a:'🗣️ Communication',t:['Practice speaking','Social interaction','Practice speaking','Connect with others','Practice speaking','Group activity','Reflect & improve'],goalId:'communication-skills'},
+  {a:'🚀 Career',t:['Focus on goals','Skill building','Network/connect','Productive work','Skill building','Review progress','Plan next week'],goalId:'career-success'},
+  {a:'✈️ Travel',t:['Research destinations','Plan trip','Save for travel','Explore local','Plan trip','Weekend adventure','Dream & plan'],goalId:'travel-adventure'},
+  {a:'🏃 Sports',t:['Play sport','Practice','Play sport','Active rest','Play sport','Competition/game','Rest & reflect'],goalId:'play-sports'},
+  {a:'🧘 Spiritual',t:['Meditate 10min','Mindful practice','Meditate 10min','Read spiritual','Meditate 10min','Reflection','Gratitude practice'],goalId:'spiritual-growth'}
+];
+
+const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const now=new Date();
+const TODAY=now.toISOString().split('T')[0];
+
+let currentUser=null;
+let userData=null;
+let unsubSnap=null;
+
+// Auth state
+onAuthStateChanged(auth, async user => {
+  if(user) {
+    currentUser=user;
+    document.getElementById('authWrap').style.display='none';
+    document.getElementById('appWrap').style.display='block';
+    document.getElementById('userEmail').textContent=user.displayName||user.email;
+    document.getElementById('userAvatar').textContent=(user.displayName||user.email)[0].toUpperCase();
+    await loadUserData(user.uid);
+    renderDashboard();
+    
+    // Request notification permission and start scheduler
+    requestNotificationPermission();
+    startNotificationScheduler();
+  } else {
+    currentUser=null;
+    userData=null;
+    if(unsubSnap){unsubSnap();unsubSnap=null;}
+    
+    // Stop notification scheduler on logout
+    stopNotificationScheduler();
+    
+    document.getElementById('authWrap').style.display='flex';
+    document.getElementById('appWrap').style.display='none';
+  }
+});
+
+async function loadUserData(uid) {
+  const ref=doc(db,'users',uid);
+  const snap=await getDoc(ref);
+  if(!snap.exists()) {
+    // New user - create profile with universal goals
+    const fresh={
+      goals:JSON.parse(JSON.stringify(DEFAULT_GOALS)),
+      schedule:JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)),
+      habits:JSON.parse(JSON.stringify(DEFAULT_HABITS)),
+      weekly:JSON.parse(JSON.stringify(DEFAULT_WEEKLY)),
+      goalSteps:{},habitData:{},schedDone:{},weekDone:{},
+      moM:now.getMonth(),moY:now.getFullYear(),theme:'dark',
+      createdAt:serverTimestamp()
+    };
+    await setDoc(ref,fresh);
+    userData=fresh;
+    
+    // Show welcome message for new users
+    setTimeout(() => {
+      toast('🎉 Welcome to Life OS! We\'ve added 7 common goals to get you started. Edit them or use ✨ AI Assistant to generate personalized plans!', 'info', 8000);
+    }, 500);
+  } else {
+    userData=snap.data();
+  }
+  applyTheme(userData.theme||'dark');
+  if(unsubSnap)unsubSnap();
+  unsubSnap=onSnapshot(ref,snap=>{
+    if(snap.exists()){
+      userData=snap.data();
+      const pg=document.querySelector('.pg.on');
+      if(pg){
+        const name=pg.id.replace('pg-','');
+        const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly};
+        renders[name]?.();
+      }
+    }
+  });
+}
+
+async function save(fields){
+  if(!currentUser)return;
+  try{ await updateDoc(doc(db,'users',currentUser.uid),fields); }catch(e){console.error('Save error',e);}
+}
+
+// Auth actions
+window.doSignup=async()=>{
+  const name=document.getElementById('signupName').value.trim();
+  const email=document.getElementById('signupEmail').value.trim();
+  const pass=document.getElementById('signupPass').value;
+  if(!name||!email||!pass)return showAuthErr('Please fill all fields');
+  if(pass.length<6)return showAuthErr('Password min 6 characters');
+  try{
+    setAuthLoading(true);
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    await updateProfile(cred.user,{displayName:name});
+  }catch(e){showAuthErr(friendlyErr(e.code));}
+  finally{setAuthLoading(false);}
+};
+
+window.doLogin=async()=>{
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  if(!email||!pass)return showAuthErr('Please fill all fields');
+  try{
+    setAuthLoading(true);
+    await signInWithEmailAndPassword(auth,email,pass);
+  }catch(e){showAuthErr(friendlyErr(e.code));}
+  finally{setAuthLoading(false);}
+};
+
+window.doGoogle=async()=>{
+  try{
+    setAuthLoading(true);
+    await signInWithPopup(auth,gProvider);
+  }catch(e){
+    console.error('Google sign-in error:',e);
+    showAuthErr(friendlyErr(e.code));
+  }
+  finally{setAuthLoading(false);}
+};
+
+window.doLogout=async()=>{
+  // Close dropdown
+  const dropdown = document.getElementById('userDropdown');
+  if(dropdown) dropdown.style.display = 'none';
+  await signOut(auth);
+};
+
+window.deleteAccount=async()=>{
+  // Close dropdown
+  const dropdown = document.getElementById('userDropdown');
+  if(dropdown) dropdown.style.display = 'none';
+  
+  const confirmMsg = `⚠️ DELETE ACCOUNT?
+
+This will PERMANENTLY delete:
+• Your account
+• All goals and progress
+• All schedule, habits, and weekly data
+• All tracking history
+
+This action CANNOT be undone!
+
+Type "DELETE" to confirm:`;
+  
+  const userInput = prompt(confirmMsg);
+  
+  if(userInput !== 'DELETE'){
+    if(userInput !== null){
+      toast('Account deletion cancelled', 'info');
+    }
+    return;
+  }
+  
+  try {
+    const user = auth.currentUser;
+    if(!user){
+      toast('No user logged in', 'info');
+      return;
+    }
+    
+    // Delete Firestore data first
+    const userDocRef = doc(db, 'users', user.uid);
+    await deleteDoc(userDocRef);
+    
+    // Then delete the user account
+    await deleteUser(user);
+    
+    toast('Account deleted successfully');
+    
+    // Redirect to auth page (logout happens automatically)
+    
+  } catch(e) {
+    console.error('Delete account error:', e);
+    
+    // Handle re-authentication requirement
+    if(e.code === 'auth/requires-recent-login'){
+      toast('For security, please log out and log back in, then try deleting your account again.', 'info', 6000);
+    } else {
+      toast('Failed to delete account: ' + (e.message || 'Unknown error'), 'info', 4000);
+    }
+  }
+};
+
+function friendlyErr(code){
+  const map={
+    'auth/email-already-in-use':'Email already registered. Try logging in.',
+    'auth/invalid-email':'Invalid email address.',
+    'auth/wrong-password':'Incorrect password.',
+    'auth/user-not-found':'No account found. Please sign up.',
+    'auth/weak-password':'Password too weak. Min 6 characters.',
+    'auth/invalid-credential':'Invalid email or password.',
+    'auth/popup-closed-by-user':'Google sign-in was cancelled.',
+    'auth/popup-blocked':'Popup blocked. Please allow popups for this site.',
+    'auth/cancelled-popup-request':'Another sign-in in progress.'
+  };
+  return map[code]||'Something went wrong. Please try again.';
+}
+function showAuthErr(msg){
+  const el=document.getElementById('authErr');
+  el.textContent=msg;el.style.display='block';
+  setTimeout(()=>el.style.display='none',4000);
+}
+function setAuthLoading(v){
+  document.querySelectorAll('.auth-btn').forEach(b=>{b.disabled=v;b.style.opacity=v?'.6':'1';});
+}
+
+// Theme
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  // Update dropdown menu labels
+  const themeLabel = document.getElementById('themeLabel');
+  const themeIcon = document.getElementById('themeIcon');
+  if(themeLabel){
+    themeLabel.textContent = t === 'dark' ? 'Dark Mode' : 'Light Mode';
+  }
+  if(themeIcon){
+    themeIcon.textContent = t === 'dark' ? '🌙' : '☀️';
+  }
+}
+window.toggleTheme=async()=>{
+  const t=(userData?.theme||'dark')==='dark'?'light':'dark';
+  applyTheme(t);
+  if(currentUser)await save({theme:t});
+};
+
+// User dropdown menu
+window.toggleUserMenu=()=>{
+  const dropdown = document.getElementById('userDropdown');
+  if(dropdown){
+    const isVisible = dropdown.style.display === 'block';
+    dropdown.style.display = isVisible ? 'none' : 'block';
+  }
+};
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('userDropdown');
+  const avatarBtn = document.getElementById('avatarBtn');
+  if(dropdown && avatarBtn && !avatarBtn.contains(e.target) && !dropdown.contains(e.target)){
+    dropdown.style.display = 'none';
+  }
+});
+
+// Nav
+window.sp=(name)=>{
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pg-'+name).classList.add('on');
+  [...document.querySelectorAll('.nb')].find(b=>b.getAttribute('onclick')?.includes(name))?.classList.add('on');
+  const renders={dashboard:renderDashboard,goals:renderGoals,schedule:renderSched,habits:renderHabits,weekly:renderWeekly};
+  renders[name]?.();
+};
+
+// Toast
+function toast(msg,type='ok',duration=2200){
+  const e=document.getElementById('toast');
+  if(!e)return;
+  e.textContent=msg;
+  e.className=`toast show ${type}`;
+  clearTimeout(e._t);
+  e._t=setTimeout(()=>e.className='toast',duration);
+}
+
+// Notification System
+let notificationInterval = null;
+let notifiedActivities = new Set(); // Track which activities we've notified about today
+let notificationsEnabled = true; // Track if user wants notifications
+
+// Toggle notifications on/off
+window.toggleNotifications = async () => {
+  if (!('Notification' in window)) {
+    toast('This browser does not support notifications', 'info');
+    return;
+  }
+  
+  if (Notification.permission === 'denied') {
+    toast('Notifications are blocked. Please enable them in browser settings.', 'info', 4000);
+    return;
+  }
+  
+  if (Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      toast('Notification permission denied', 'info');
+      return;
+    }
+  }
+  
+  // Toggle state
+  notificationsEnabled = !notificationsEnabled;
+  
+  // Update label
+  const label = document.getElementById('notifLabel');
+  if (label) {
+    label.textContent = notificationsEnabled ? 'Notifications: ON' : 'Notifications: OFF';
+  }
+  
+  // Start or stop scheduler
+  if (notificationsEnabled) {
+    startNotificationScheduler();
+    toast('🔔 Notifications enabled!', 'ok');
+  } else {
+    stopNotificationScheduler();
+    toast('🔕 Notifications disabled', 'info');
+  }
+  
+  // Save preference to userData
+  if (userData && currentUser) {
+    await save({ notificationsEnabled: notificationsEnabled });
+  }
+};
+
+// Request notification permission
+async function requestNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.log('This browser does not support notifications');
+    return;
+  }
+  
+  // Restore saved preference
+  if (userData && userData.notificationsEnabled !== undefined) {
+    notificationsEnabled = userData.notificationsEnabled;
+  }
+  
+  // Update label
+  const label = document.getElementById('notifLabel');
+  if (label) {
+    label.textContent = notificationsEnabled ? 'Notifications: ON' : 'Notifications: OFF';
+  }
+  
+  if (notificationsEnabled && Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      toast('🔔 Schedule reminders enabled! You\'ll get alerts 5 min before activities end.', 'ok', 5000);
+    }
+  }
+}
+
+// Start notification scheduler
+function startNotificationScheduler() {
+  if (!notificationsEnabled) return;
+  
+  // Clear any existing interval
+  if (notificationInterval) {
+    clearInterval(notificationInterval);
+  }
+  
+  // Reset notified activities at midnight
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const msUntilMidnight = midnight - now;
+  
+  setTimeout(() => {
+    notifiedActivities.clear();
+    // Set up daily reset
+    setInterval(() => {
+      notifiedActivities.clear();
+    }, 24 * 60 * 60 * 1000);
+  }, msUntilMidnight);
+  
+  // Check every minute for upcoming activities
+  checkScheduleNotifications();
+  notificationInterval = setInterval(checkScheduleNotifications, 60 * 1000);
+}
+
+// Stop notification scheduler
+function stopNotificationScheduler() {
+  if (notificationInterval) {
+    clearInterval(notificationInterval);
+    notificationInterval = null;
+  }
+  notifiedActivities.clear();
+}
+
+// Check if any activities need notifications
+function checkScheduleNotifications() {
+  if (!userData || !userData.schedule) return;
+  if (!notificationsEnabled) return;
+  if (Notification.permission !== 'granted') return;
+  
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTimeInMinutes = currentHour * 60 + currentMinute;
+  
+  const schedule = userData.schedule || DEFAULT_SCHEDULE;
+  
+  schedule.forEach((block, index) => {
+    // Parse end time from block (e.g., "6:30–7:20 AM")
+    const timeMatch = block.t.match(/(\d+):(\d+).*?(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeMatch) return;
+    
+    const [, , , endH, endM, period] = timeMatch;
+    let endHour = parseInt(endH);
+    const endMinute = parseInt(endM);
+    
+    // Convert to 24-hour format
+    if (period.toUpperCase() === 'PM' && endHour !== 12) {
+      endHour += 12;
+    } else if (period.toUpperCase() === 'AM' && endHour === 12) {
+      endHour = 0;
+    }
+    
+    const endTimeInMinutes = endHour * 60 + endMinute;
+    const fiveMinutesBefore = endTimeInMinutes - 5;
+    
+    // Check if we should notify (5 minutes before end time)
+    const notificationKey = `${TODAY}|${index}|${fiveMinutesBefore}`;
+    
+    if (currentTimeInMinutes === fiveMinutesBefore && !notifiedActivities.has(notificationKey)) {
+      notifiedActivities.add(notificationKey);
+      
+      // Find next activity
+      const nextBlock = schedule[index + 1];
+      
+      // Create notification
+      const notification = new Notification('⏰ Life OS Reminder', {
+        body: `${block.i} ${block.a} ends in 5 minutes!${nextBlock ? `\n\nNext: ${nextBlock.i} ${nextBlock.a}` : ''}`,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: notificationKey,
+        requireInteraction: false,
+        silent: false
+      });
+      
+      // Auto-close after 10 seconds
+      setTimeout(() => notification.close(), 10000);
+      
+      // Show in-app toast as well
+      toast(`⏰ ${block.a} ends in 5 min!${nextBlock ? ` Next: ${nextBlock.a}` : ''}`, 'info', 5000);
+    }
+  });
+  
+  // Check reminders
+  const reminders = userData.reminders || [];
+  reminders.forEach((reminder, index) => {
+    const reminderDateTime = new Date(`${reminder.date} ${reminder.time}`);
+    const reminderHour = reminderDateTime.getHours();
+    const reminderMinute = reminderDateTime.getMinutes();
+    const reminderTimeInMinutes = reminderHour * 60 + reminderMinute;
+    
+    // Check if it's time for this reminder
+    const notificationKey = `${TODAY}|reminder|${index}`;
+    
+    if (currentTimeInMinutes === reminderTimeInMinutes && !notifiedActivities.has(notificationKey)) {
+      notifiedActivities.add(notificationKey);
+      
+      // Create notification
+      const notification = new Notification('🔔 Life OS Reminder', {
+        body: `${reminder.icon} ${reminder.task}${reminder.notes ? '\n\n' + reminder.notes : ''}`,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: notificationKey,
+        requireInteraction: true,
+        silent: false
+      });
+      
+      // Auto-close after 30 seconds (longer for reminders)
+      setTimeout(() => notification.close(), 30000);
+      
+      // Show in-app toast
+      toast(`🔔 ${reminder.task}`, 'info', 10000);
+    }
+  });
+}
+
+// Stats
+function calcStats(){
+  const habits=userData?.habitData||{};
+  const habs=userData?.habits||DEFAULT_HABITS;
+  let todayDone=habs.filter(h=>habits[`${TODAY}|${h.id}`]==='done').length;
+  let sDone=(userData?.schedule||DEFAULT_SCHEDULE).filter((_,i)=>(userData?.schedDone||{})[`${TODAY}|${i}`]).length;
+  let stDone=0;
+  (userData?.goals||DEFAULT_GOALS).forEach(g=>((userData?.goalSteps||{})[g.id]||[]).forEach(v=>{if(v)stDone++;}));
+  const y=now.getFullYear(),m=now.getMonth();
+  let tot=0,dn=0;
+  for(let d=1;d<=now.getDate();d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    habs.forEach(h=>{tot++;if(habits[`${ds}|${h.id}`]==='done')dn++;});
+  }
+  return{todayDone,sDone,stDone,mPct:tot?Math.round(dn/tot*100):0};
+}
+
+// Dashboard
+function renderDashboard(){
+  if(!userData)return;
+  document.getElementById('dp').textContent=`${DN[now.getDay()]}, ${now.getDate()} ${MN[now.getMonth()]} ${now.getFullYear()}`;
+  const{todayDone,sDone,stDone,mPct}=calcStats();
+  const habs=userData.habits||DEFAULT_HABITS;
+  document.getElementById('statsG').innerHTML=
+    [["Today's Habits",`${todayDone}/${habs.length}`],
+     ["Schedule Done",`${sDone}/${(userData.schedule||DEFAULT_SCHEDULE).length}`],
+     ["Goal Steps",`${stDone}`],
+     ["Month Score",`${mPct}%`]]
+    .map(([l,n])=>`<div class="sc"><div class="sn">${n}</div><div class="sl">${l}</div></div>`).join('');
+  const sched=userData.schedule||DEFAULT_SCHEDULE;
+  const ch=now.getHours()+now.getMinutes()/60;
+  let ci=sched.findIndex((s,i)=>s.h<=ch&&(sched[i+1]?sched[i+1].h:25)>ch);
+  if(ci<0)ci=sched.length-1;
+  const sl=sched.slice(Math.max(0,ci-1),ci+4);
+  document.getElementById('dashSched').innerHTML=buildSched(sl,Math.max(0,ci-1),5,false);
+  const goals=userData.goals||DEFAULT_GOALS;
+  document.getElementById('dashGoals').innerHTML=goals.map(g=>{
+    const st=(userData.goalSteps||{})[g.id]||Array(g.steps.length).fill(false);
+    const dn=st.filter(Boolean).length,pct=g.steps.length?Math.round(dn/g.steps.length*100):0;
+    return`<div class="gc"style="border-top:3px solid ${g.color}"onclick="sp('goals')">
+      <div class="garea">${g.area}</div>
+      <div class="gtitle">${g.title}</div>
+      <div class="pb"><div class="pf"style="width:${pct}%;background:${g.color}"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+        <span style="font-size:11px;color:var(--muted)">${dn}/${g.steps.length} steps</span>
+        <span style="font-size:12px;color:${g.color};font-weight:700">${pct}%</span>
+      </div></div>`;
+  }).join('');
+  renderGoals();
+  renderSchedule();
+  renderHabits();
+  renderWeekly();
+  renderReminders();
+}
+
+// Goals
+function renderGoals(){
+  if(!userData)return;
+  const goals=userData.goals||DEFAULT_GOALS;
+  
+  // Helper to calculate days remaining
+  function getDaysRemaining(deadline){
+    if(!deadline)return null;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    let deadlineDate;
+    // Check if it's a date string (YYYY-MM-DD)
+    if(deadline.match(/^\d{4}-\d{2}-\d{2}$/)){
+      deadlineDate = new Date(deadline);
+    } else {
+      // Try parsing month-year format like "Mar 2026" or "Dec 2026"
+      deadlineDate = new Date(deadline);
+    }
+    
+    if(isNaN(deadlineDate.getTime()))return null;
+    
+    const diffTime = deadlineDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }
+  
+  document.getElementById('goalsG').innerHTML=`
+    <div style="grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:4px">
+      <button class="abtn"onclick="openAddGoal()">＋ Add Goal</button>
+    </div>`+
+    goals.map((g,gi)=>{
+      const st=(userData.goalSteps||{})[g.id]||Array(g.steps.length).fill(false);
+      const dn=st.filter(Boolean).length,pct=g.steps.length?Math.round(dn/g.steps.length*100):0;
+      const sc=g.status==='Achieved'?'done':g.status==='Not Started'?'pend':'';
+      
+      // Calculate days remaining
+      const daysLeft = getDaysRemaining(g.deadline);
+      let daysLeftHTML = '';
+      if(daysLeft !== null){
+        if(daysLeft < 0){
+          daysLeftHTML = `<div style="font-size:10px;color:#ef4444;font-weight:600;background:color-mix(in srgb,#ef4444 12%,transparent);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">⏰ ${Math.abs(daysLeft)} days overdue</div>`;
+        } else if(daysLeft === 0){
+          daysLeftHTML = `<div style="font-size:10px;color:#f59e0b;font-weight:600;background:color-mix(in srgb,#f59e0b 12%,transparent);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">⏰ Due today!</div>`;
+        } else if(daysLeft <= 7){
+          daysLeftHTML = `<div style="font-size:10px;color:#f59e0b;font-weight:600;background:color-mix(in srgb,#f59e0b 12%,transparent);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">⏰ ${daysLeft} ${daysLeft===1?'day':'days'} left</div>`;
+        } else if(daysLeft <= 30){
+          daysLeftHTML = `<div style="font-size:10px;color:var(--accent);font-weight:600;background:color-mix(in srgb,var(--accent) 12%,transparent);padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">📅 ${daysLeft} days left</div>`;
+        } else {
+          daysLeftHTML = `<div style="font-size:10px;color:var(--muted);font-weight:500;padding:3px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;">📅 ${daysLeft} days left</div>`;
+        }
+      }
+      
+      return`<div class="gc"style="border-top:3px solid ${g.color}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div class="garea">${g.area}</div>
+          <div style="display:flex;gap:5px">
+            <button class="icobtn"onclick="editGoal(${gi})"title="Edit">✏️</button>
+            <button class="icobtn"onclick="deleteGoal(${gi})"title="Delete">🗑️</button>
+          </div>
+        </div>
+        ${daysLeftHTML}
+        <div class="gtitle">${g.title}</div>
+        <div class="gwhy">${g.why}</div>
+        <div class="pb"><div class="pf"style="width:${pct}%;background:${g.color}"></div></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;margin-top:4px">
+          <span style="font-size:11px;color:var(--muted)">${dn}/${g.steps.length} steps · ${pct}%</span>
+          <span class="gsb ${sc}">${g.status}</span>
+        </div>
+        <div>${g.steps.map((s,si)=>`
+          <div class="srow ${st[si]?'ck':''}"onclick="toggleStep('${g.id}',${si})">
+            <div class="sb">${st[si]?'✓':''}</div>${s}
+          </div>`).join('')}
+        </div>
+        <button class="abtn sm"style="margin-top:10px"onclick="addStep('${g.id}')">＋ Add Step</button>
+        <div class="gmeta">
+          <span class="gdl">🗓 ${formatDeadline(g.deadline)}</span>
+          <span style="font-size:11px;color:var(--muted)">${g.measure}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+window.toggleStep=async(gid,si)=>{
+  const goals=userData.goals||DEFAULT_GOALS;
+  const g=goals.find(x=>x.id===gid);
+  const gs=JSON.parse(JSON.stringify(userData.goalSteps||{}));
+  if(!gs[gid])gs[gid]=Array(g.steps.length).fill(false);
+  gs[gid][si]=!gs[gid][si];
+  await save({goalSteps:gs});
+  toast(gs[gid][si]?'✅ Step done!':'↩ Cleared');
+};
+
+window.addStep=async(gid)=>{
+  const step=prompt('New step:');
+  if(!step?.trim())return;
+  const goals=JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+  const g=goals.find(x=>x.id===gid);
+  g.steps.push(step.trim());
+  await save({goals});
+  toast('Step added!');
+};
+
+window.deleteGoal=async(gi)=>{
+  const goal = (userData.goals||DEFAULT_GOALS)[gi];
+  if(!goal)return;
+  
+  const goalId = goal.id;
+  
+  // Count related items that will be deleted
+  const relatedSchedule = (userData.schedule||[]).filter(s => s.goalId === goalId).length;
+  const relatedHabits = (userData.habits||[]).filter(h => h.goalId === goalId).length;
+  const relatedWeekly = (userData.weekly||[]).filter(w => w.goalId === goalId).length;
+  
+  let msg = `Delete "${goal.title}"?`;
+  
+  if(relatedSchedule > 0 || relatedHabits > 0 || relatedWeekly > 0){
+    msg += `\n\nThis will also delete:`;
+    if(relatedSchedule > 0) msg += `\n• ${relatedSchedule} schedule block(s)`;
+    if(relatedHabits > 0) msg += `\n• ${relatedHabits} habit(s)`;
+    if(relatedWeekly > 0) msg += `\n• ${relatedWeekly} weekly plan(s)`;
+    msg += `\n\n(Preset and manually-added items will remain)`;
+  }
+  
+  if(!confirm(msg))return;
+  
+  // Delete goal
+  const goals = JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+  goals.splice(gi, 1);
+  
+  // Delete goal steps
+  const goalSteps = {...(userData.goalSteps||{})};
+  delete goalSteps[goalId];
+  
+  // CASCADE DELETE: Remove only items with this goalId
+  const schedule = (userData.schedule||DEFAULT_SCHEDULE).filter(s => s.goalId !== goalId);
+  const habits = (userData.habits||DEFAULT_HABITS).filter(h => h.goalId !== goalId);
+  const weekly = (userData.weekly||DEFAULT_WEEKLY).filter(w => w.goalId !== goalId);
+  
+  await save({goals, goalSteps, schedule, habits, weekly});
+  
+  const deletedCount = relatedSchedule + relatedHabits + relatedWeekly;
+  toast(deletedCount > 0 ? `Goal and ${deletedCount} related item(s) deleted` : 'Goal deleted');
+};
+
+window.openAddGoal=()=>{
+  document.getElementById('aiToggle').checked=false;
+  document.getElementById('manualSteps').style.display='block';
+  document.getElementById('aiLoading').style.display='none';
+  document.getElementById('gTitle').value='';
+  document.getElementById('gArea').value='';
+  document.getElementById('gAreaCustom').value='';
+  document.getElementById('customAreaField').style.display='none';
+  document.getElementById('gWhy').value='';
+  document.getElementById('gDeadline').value='';
+  document.getElementById('gMeasure').value='';
+  document.getElementById('gSteps').value='';
+  document.getElementById('goalModalTitle').textContent='Add Goal';
+  document.getElementById('saveGoalBtn').onclick=saveGoalWithAI;
+  openModal('goalModal');
+};
+
+// Area dropdown handler
+document.addEventListener('DOMContentLoaded',()=>{
+  const areaSelect=document.getElementById('gArea');
+  const customField=document.getElementById('customAreaField');
+  if(areaSelect){
+    areaSelect.addEventListener('change',function(){
+      if(this.value==='Custom'){
+        customField.style.display='block';
+      }else{
+        customField.style.display='none';
+      }
+    });
+  }
+});
+
+// Get area value (handle custom)
+function getAreaValue(){
+  const area=document.getElementById('gArea').value;
+  if(area==='Custom'){
+    return document.getElementById('gAreaCustom').value.trim();
+  }
+  return area;
+}
+
+// Get color based on category
+function getColorForArea(area){
+  const colorMap = {
+    'Health & Fitness 🧘': '#10b981',
+    'Career Growth 💼': '#8b5cf6',
+    'Finances 💰': '#f59e0b',
+    'Relationships 🤝': '#ec4899',
+    'Adventure & Travel ✈️': '#06b6d4',
+    'Fun & Hobbies 🎨': '#14b8a6',
+    'Community 🌍': '#22c55e',
+    'Learning & Education 📚': '#6366f1',
+    'Spirituality & Mindfulness 🧘‍♂️': '#a855f7',
+    'Home & Environment 🏡': '#84cc16'
+  };
+  return colorMap[area] || '#6366f1'; // Default purple if not found
+}
+
+// Format deadline nicely
+function formatDeadline(deadline){
+  if(!deadline)return 'No deadline';
+  // Check if it's a date string (YYYY-MM-DD)
+  if(deadline.match(/^\d{4}-\d{2}-\d{2}$/)){
+    const d=new Date(deadline);
+    return d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  }
+  return deadline;
+}
+window.closeModal=(id)=>document.getElementById(id).style.display='none';
+
+// AI Goal Generation
+window.saveGoalWithAI=async()=>{
+  const useAI=document.getElementById('aiToggle').checked;
+  if(useAI){
+    await generateGoalWithAI();
+  }else{
+    await saveGoal();
+  }
+};
+
+async function generateGoalWithAI(){
+  const title=document.getElementById('gTitle').value.trim();
+  const area=getAreaValue();
+  const why=document.getElementById('gWhy').value.trim();
+  const deadline=document.getElementById('gDeadline').value;
+  
+  if(!title||!area){
+    toast('Title and area required','info');
+    return;
+  }
+
+  // Show loading
+  document.getElementById('manualSteps').style.display='none';
+  document.getElementById('aiLoading').style.display='block';
+  document.getElementById('saveGoalBtn').disabled=true;
+
+  try{
+    // Format deadline nicely
+    let deadlineText='No specific deadline';
+    if(deadline){
+      const d=new Date(deadline);
+      deadlineText=d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+    }
+
+    // Gather user's current context
+    const existingGoals = (userData?.goals || []).map(g => `${g.area}: ${g.title}`).join(', ');
+    const existingSchedule = (userData?.schedule || []).map(s => `${s.t}: ${s.a}`).join(', ');
+    const existingHabits = (userData?.habits || []).map(h => `${h.i} ${h.l}`).join(', ');
+
+    // Call our backend API
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000/api/generate-goal-plan'
+      : 'https://life-os-ten-gamma.vercel.app/api/generate-goal-plan';
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title,
+        area,
+        why: why || 'Personal growth',
+        deadline: deadlineText,
+        // Send user's current context
+        context: {
+          existingGoals: existingGoals || 'None yet',
+          existingSchedule: existingSchedule || 'No schedule set',
+          existingHabits: existingHabits || 'No habits tracked'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'API request failed');
+    }
+
+    const { plan } = await response.json();
+
+    // Validate plan structure
+    if(!plan.steps || !Array.isArray(plan.steps) || plan.steps.length === 0){
+      throw new Error('Invalid plan structure received');
+    }
+
+    // Save goal first to get the goal ID
+    const goalId = 'g' + Date.now();
+    const newGoal = {
+      id: goalId,
+      area,
+      color: getColorForArea(area), // Auto color based on category
+      title,
+      why: why || 'Personal growth',
+      deadline: deadline || 'Dec 2026',
+      status: 'In Progress',
+      steps: plan.steps,
+      measure: document.getElementById('gMeasure').value.trim() || 'Track progress'
+    };
+    
+    const goals = JSON.parse(JSON.stringify(userData.goals || DEFAULT_GOALS));
+    goals.push(newGoal);
+    await save({goals});
+
+    // Then add schedule blocks with goalId tag
+    if(plan.dailySchedule && Array.isArray(plan.dailySchedule) && plan.dailySchedule.length > 0){
+      const sched = JSON.parse(JSON.stringify(userData.schedule || DEFAULT_SCHEDULE));
+      plan.dailySchedule.forEach(block => {
+        // Parse time to get hour
+        const timeMatch = block.time.match(/(\d+):(\d+)/);
+        let h = 12;
+        if(timeMatch){
+          h = parseFloat(timeMatch[1]);
+          if(block.time.includes('PM') && h !== 12) h += 12;
+          if(block.time.includes('AM') && h === 12) h = 0;
+          h += (parseFloat(timeMatch[2] || 0) / 60);
+        }
+        
+        sched.push({
+          t: block.time,
+          i: block.icon || '📌',
+          a: block.activity,
+          d: block.details || '',
+          g: area,
+          p: 'High',
+          h: h,
+          goalId: goalId  // Tag with goal ID for cascade delete
+        });
+      });
+      sched.sort((a, b) => a.h - b.h);
+      await save({schedule: sched});
+    }
+
+    // Add habits with goalId tag
+    if(plan.habits && Array.isArray(plan.habits) && plan.habits.length > 0){
+      const habs = JSON.parse(JSON.stringify(userData.habits || DEFAULT_HABITS));
+      plan.habits.forEach(habit => {
+        habs.push({
+          id: 'h' + Date.now() + Math.random(),
+          i: habit.icon || '⭐',
+          l: habit.label,
+          goalId: goalId  // Tag with goal ID for cascade delete
+        });
+      });
+      await save({habits: habs});
+    }
+
+    // Add weekly tasks with goalId tag
+    if(plan.weeklyTasks && Array.isArray(plan.weeklyTasks) && plan.weeklyTasks.length === 7){
+      const weekly = JSON.parse(JSON.stringify(userData.weekly || DEFAULT_WEEKLY));
+      weekly.push({
+        a: area,
+        t: plan.weeklyTasks,
+        goalId: goalId  // Tag with goal ID for cascade delete
+      });
+      await save({weekly});
+    }
+
+    closeModal('goalModal');
+    toast('🎉 Goal created with AI-powered plan!');
+    
+  } catch(e) {
+    console.error('AI generation error:', e);
+    let errorMsg = 'AI generation failed. Please add steps manually.';
+    
+    if(e.message.includes('fetch')) {
+      errorMsg = 'Could not connect to AI service. Please check your connection.';
+    } else if(e.message.includes('JSON')) {
+      errorMsg = 'AI response format error. Please try again.';
+    }
+    
+    toast(errorMsg, 'info');
+    document.getElementById('manualSteps').style.display = 'block';
+    document.getElementById('aiLoading').style.display = 'none';
+  } finally {
+    document.getElementById('saveGoalBtn').disabled = false;
+  }
+}
+
+window.saveGoal=async()=>{
+  const title=document.getElementById('gTitle').value.trim();
+  const area=getAreaValue();
+  const why=document.getElementById('gWhy').value.trim();
+  const deadline=document.getElementById('gDeadline').value.trim();
+  const measure=document.getElementById('gMeasure').value.trim();
+  const color=getColorForArea(area); // Auto color based on category
+  const stepsRaw=document.getElementById('gSteps').value.trim();
+  if(!title||!area)return toast('Title and area required','info');
+  const steps=stepsRaw?stepsRaw.split('\n').map(s=>s.trim()).filter(Boolean):[];
+  const id='g'+Date.now();
+  const newGoal={id,area,color,title,why,deadline,status:'In Progress',steps,measure};
+  const goals=JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+  goals.push(newGoal);
+  await save({goals});
+  closeModal('goalModal');
+  toast('🎯 Goal added!');
+};
+
+window.editGoal=(gi)=>{
+  const g=(userData.goals||DEFAULT_GOALS)[gi];
+  document.getElementById('gTitle').value=g.title;
+  
+  // Set area dropdown
+  const areaSelect=document.getElementById('gArea');
+  const customField=document.getElementById('customAreaField');
+  const customInput=document.getElementById('gAreaCustom');
+  
+  // Check if area is in predefined list
+  const predefinedAreas=['Health & Fitness 🧘','Career Growth 💼','Finances 💰','Relationships 🤝','Adventure & Travel ✈️','Fun & Hobbies 🎨','Community 🌍','Learning & Education 📚','Spirituality & Mindfulness 🧘‍♂️','Home & Environment 🏡'];
+  
+  if(predefinedAreas.includes(g.area)){
+    areaSelect.value=g.area;
+    customField.style.display='none';
+  }else{
+    areaSelect.value='Custom';
+    customInput.value=g.area;
+    customField.style.display='block';
+  }
+  
+  document.getElementById('gWhy').value=g.why;
+  document.getElementById('gDeadline').value=g.deadline;
+  document.getElementById('gMeasure').value=g.measure;
+  document.getElementById('gSteps').value=g.steps.join('\n');
+  document.getElementById('goalModalTitle').textContent='Edit Goal';
+  document.getElementById('saveGoalBtn').onclick=async()=>{
+    const goals=JSON.parse(JSON.stringify(userData.goals||DEFAULT_GOALS));
+    const area=getAreaValue();
+    goals[gi]={
+      id:goals[gi].id,
+      title:document.getElementById('gTitle').value.trim(),
+      area:area,
+      why:document.getElementById('gWhy').value.trim(),
+      deadline:document.getElementById('gDeadline').value.trim(),
+      measure:document.getElementById('gMeasure').value.trim(),
+      color:getColorForArea(area), // Auto color based on category
+      steps:document.getElementById('gSteps').value.trim().split('\n').map(s=>s.trim()).filter(Boolean),
+      status:goals[gi].status
+    };
+    await save({goals});
+    closeModal('goalModal');
+    document.getElementById('goalModalTitle').textContent='Add Goal';
+    document.getElementById('saveGoalBtn').onclick=saveGoalWithAI;
+    toast('Goal updated!');
+  };
+  openModal('goalModal');
+};
+
+// Schedule
+function buildSched(blocks,offset,max,editable=true){
+  const sched=userData?.schedule||DEFAULT_SCHEDULE;
+  const ch=now.getHours()+now.getMinutes()/60;
+  return blocks.slice(0,max).map((s,ri)=>{
+    const ai=offset+ri,next=sched[ai+1];
+    const isCur=s.h<=ch&&(next?next.h:25)>ch;
+    const isDn=!!(userData?.schedDone||{})[`${TODAY}|${ai}`];
+    const pc=s.p==='Critical'?'pt-c':s.p==='High'?'pt-h':'pt-m';
+    return`<div class="sb2 ${isCur?'cur':''} ${isDn?'dn':''}">
+      <div class="st ${isCur?'now':''}">${s.t}</div>
+      <div onclick="toggleSched(${ai})"style="cursor:pointer;flex:1">
+        <div class="stit">${s.i} ${s.a}${isDn?' <span style="color:var(--green);font-size:10px">✓ done</span>':isCur?' <span style="color:var(--accent);font-size:10px">← NOW</span>':''}</div>
+        <div class="sdet">${s.d}</div>
+        <span class="sgt">${s.g}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <span class="pt ${pc}">${s.p}</span>
+        ${editable?`<div style="display:flex;gap:4px">
+          <button class="icobtn sm"onclick="event.stopPropagation();editSched(${ai})"title="Edit">✏️</button>
+          <button class="icobtn sm"onclick="event.stopPropagation();deleteSched(${ai})"title="Delete">🗑️</button>
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderSched(){
+  if(!userData)return;
+  const sched=userData.schedule||DEFAULT_SCHEDULE;
+  document.getElementById('schedFull').innerHTML=
+    `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+       <button class="abtn"onclick="openAddSched()">＋ Add Block</button>
+     </div>`+buildSched(sched,0,sched.length);
+}
+
+window.toggleSched=async(idx)=>{
+  const k=`${TODAY}|${idx}`;
+  const sd=JSON.parse(JSON.stringify(userData.schedDone||{}));
+  sd[k]=!sd[k];
+  await save({schedDone:sd});
+  toast(sd[k]?'✅ Block done!':'↩ Cleared');
+};
+
+// Sequential time picker state
+let timePickerState = 'start'; // 'start' or 'end'
+let selectedStartTime = null;
+let selectedEndTime = null;
+
+// Handle time picker click/change
+window.handleTimePickerClick = () => {
+  const picker = document.getElementById('sTimePicker');
+  const hint = document.getElementById('timePickerHint');
+  
+  // Update hint based on state
+  if (timePickerState === 'start') {
+    hint.textContent = 'Selecting start time...';
+  } else {
+    hint.textContent = 'Now select end time...';
+  }
+};
+
+// Listen for time selection
+document.addEventListener('DOMContentLoaded', () => {
+  const picker = document.getElementById('sTimePicker');
+  if (picker) {
+    picker.addEventListener('change', function() {
+      const selectedTime = this.value; // Format: "20:00" (24-hour)
+      
+      if (timePickerState === 'start') {
+        // First selection = start time
+        selectedStartTime = selectedTime;
+        timePickerState = 'end';
+        document.getElementById('timePickerHint').textContent = 'Now select end time';
+        this.value = ''; // Clear to select end time
+      } else {
+        // Second selection = end time
+        selectedEndTime = selectedTime;
+        updateTimeDisplaySequential();
+        timePickerState = 'start';
+        document.getElementById('timePickerHint').textContent = 'Click to select start time';
+        this.value = ''; // Clear for next use
+      }
+    });
+  }
+});
+
+// Update display with sequential times
+function updateTimeDisplaySequential() {
+  if (!selectedStartTime || !selectedEndTime) {
+    toast('Please select both start and end time', 'info');
+    return;
+  }
+  
+  // Convert 24-hour to 12-hour with AM/PM
+  const [startH, startM] = selectedStartTime.split(':').map(Number);
+  const [endH, endM] = selectedEndTime.split(':').map(Number);
+  
+  // Format start time
+  const startPeriod = startH >= 12 ? 'PM' : 'AM';
+  const startHour12 = startH === 0 ? 12 : (startH > 12 ? startH - 12 : startH);
+  const startFormatted = `${startHour12}:${String(startM).padStart(2,'0')} ${startPeriod}`;
+  
+  // Format end time
+  const endPeriod = endH >= 12 ? 'PM' : 'AM';
+  const endHour12 = endH === 0 ? 12 : (endH > 12 ? endH - 12 : endH);
+  const endFormatted = `${endHour12}:${String(endM).padStart(2,'0')} ${endPeriod}`;
+  
+  // Display formatted time
+  const display = `${startFormatted} - ${endFormatted}`;
+  document.getElementById('sTimeDisplay').value = display;
+  
+  // Calculate sort order using 24-hour format (fixed: use 24-hour directly)
+  const sortOrder = startH + (startM / 60);
+  document.getElementById('sH').value = sortOrder.toFixed(2);
+  
+  toast(`✓ Time set: ${display}`, 'ok', 2000);
+}
+
+window.openAddSched=()=>{
+  document.getElementById('schedModalTitle').textContent='Add Schedule Block';
+  document.getElementById('saveSchedBtn').textContent='Add Block';
+  document.getElementById('saveSchedBtn').onclick=saveSched;
+  
+  // Reset time picker state
+  timePickerState = 'start';
+  selectedStartTime = null;
+  selectedEndTime = null;
+  document.getElementById('sTimePicker').value='';
+  document.getElementById('timePickerHint').textContent='Click to select start time';
+  document.getElementById('sTimeDisplay').value='';
+  
+  document.getElementById('sIcon').value='';
+  document.getElementById('sAct').value='';
+  document.getElementById('sDetail').value='';
+  document.getElementById('sGoal').value='';
+  document.getElementById('sPri').value='High';
+  document.getElementById('sH').value='';
+  openModal('schedModal');
+};
+
+window.saveSched=async()=>{
+  const time=document.getElementById('sTimeDisplay').value.trim();
+  const icon=document.getElementById('sIcon').value.trim()||'📌';
+  const act=document.getElementById('sAct').value.trim();
+  const detail=document.getElementById('sDetail').value.trim();
+  const goal=document.getElementById('sGoal').value.trim();
+  const pri=document.getElementById('sPri').value;
+  const h=parseFloat(document.getElementById('sH').value);
+  
+  if(!time||!act){
+    return toast('Please select time and enter activity','info');
+  }
+  if(!h && h !== 0){
+    return toast('Please select both start and end time','info');
+  }
+  
+  const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
+  sched.push({t:time,i:icon,a:act,d:detail,g:goal,p:pri,h});
+  sched.sort((a,b)=>a.h-b.h);
+  await save({schedule:sched});
+  closeModal('schedModal');
+  toast('Block added!');
+};
+
+window.editSched=(idx)=>{
+  const s=(userData.schedule||DEFAULT_SCHEDULE)[idx];
+  
+  // For editing, just show the existing time (user can re-select if needed)
+  document.getElementById('sTimeDisplay').value=s.t;
+  document.getElementById('sTimePicker').value='';
+  document.getElementById('timePickerHint').textContent='Click to change time';
+  
+  // Reset time picker state for editing
+  timePickerState = 'start';
+  selectedStartTime = null;
+  selectedEndTime = null;
+  
+  document.getElementById('sIcon').value=s.i;
+  document.getElementById('sAct').value=s.a;
+  document.getElementById('sDetail').value=s.d;
+  document.getElementById('sGoal').value=s.g;
+  document.getElementById('sPri').value=s.p;
+  document.getElementById('sH').value=s.h;
+  document.getElementById('schedModalTitle').textContent='Edit Schedule Block';
+  document.getElementById('saveSchedBtn').textContent='Update Block';
+  document.getElementById('saveSchedBtn').onclick=async()=>{
+    const time=document.getElementById('sTimeDisplay').value.trim();
+    const h=parseFloat(document.getElementById('sH').value);
+    
+    if(!time || (!h && h !== 0)){
+      return toast('Please select time','info');
+    }
+    
+    const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
+    sched[idx]={
+      t:time,
+      i:document.getElementById('sIcon').value.trim()||'📌',
+      a:document.getElementById('sAct').value.trim(),
+      d:document.getElementById('sDetail').value.trim(),
+      g:document.getElementById('sGoal').value.trim(),
+      p:document.getElementById('sPri').value,
+      h:h,
+      goalId:s.goalId // Preserve goalId if exists
+    };
+    sched.sort((a,b)=>a.h-b.h);
+    await save({schedule:sched});
+    closeModal('schedModal');
+    document.getElementById('schedModalTitle').textContent='Add Schedule Block';
+    document.getElementById('saveSchedBtn').textContent='Add Block';
+    document.getElementById('saveSchedBtn').onclick=saveSched;
+    toast('Block updated!');
+  };
+  openModal('schedModal');
+};
+
+window.deleteSched=async(idx)=>{
+  if(!confirm('Delete this block?'))return;
+  const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
+  sched.splice(idx,1);
+  await save({schedule:sched});
+  toast('Block deleted');
+};
+
+// Habits
+window.chMo=async(d)=>{
+  let m=(userData.moM??now.getMonth())+d;
+  let y=userData.moY??now.getFullYear();
+  if(m>11){m=0;y++;}
+  if(m<0){m=11;y--;}
+  await save({moM:m,moY:y});
+};
+
+function renderHabits(){
+  if(!userData)return;
+  const habs=userData.habits||DEFAULT_HABITS;
+  const hdata=userData.habitData||{};
+  const y=userData.moY??now.getFullYear();
+  const m=userData.moM??now.getMonth();
+  const days=new Date(y,m+1,0).getDate();
+  const isCurMo=y===now.getFullYear()&&m===now.getMonth();
+  const todD=now.getDate();
+  const upTo=isCurMo?todD:days;
+  document.getElementById('moName').textContent=`${MN[m]} ${y}`;
+  let tot=0,dn=0;
+  for(let d=1;d<=upTo;d++){
+    const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    habs.forEach(h=>{tot++;if(hdata[`${ds}|${h.id}`]==='done')dn++;});
+  }
+  document.getElementById('moScore').textContent=`${tot?Math.round(dn/tot*100):0}% · ${dn}/${tot}`;
+  let ths='<th class="icon-col"></th><th class="habit-col">HABIT</th>';
+  for(let d=1;d<=days;d++){
+    const isT=isCurMo&&d===todD;
+    ths+=`<th class="day-col ${isT?'th-today':''}">${d}</th>`;
+  }
+  ths+='<th class="score-col">SCORE</th><th class="pct-col">%</th>';
+  let rows='';
+  habs.forEach((h,hi)=>{
+    let dcnt=0,cells='';
+    for(let d=1;d<=days;d++){
+      const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const k=`${ds}|${h.id}`;
+      const v=hdata[k];
+      const isT=isCurMo&&d===todD,isFut=isCurMo&&d>todD;
+      let cls='',txt='';
+      if(v==='done'){cls='hdn';txt='✅';dcnt++;}
+      else if(v==='miss'){cls='hms';txt='❌';}
+      else if(isFut){cls='hft';txt='·';}
+      else if(isT){cls='htc';}
+      cells+=`<td class="day-col"><div class="hc ${cls}"data-k="${isFut?'':k}"onclick="togHabit(this,'${isFut?'':k}')">${txt}</div></td>`;
+    }
+    const pct=upTo>0?Math.round(dcnt/upTo*100):0;
+    rows+=`<tr>
+      <td class="icon-col">${h.i}</td>
+      <td class="habit-col">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>${h.l}</span>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="icobtn sm"onclick="editHabit(${hi})"title="Edit">✏️</button>
+            <button class="icobtn sm"onclick="deleteHabit(${hi})"title="Delete">🗑️</button>
+          </div>
+        </div>
+      </td>
+      ${cells}
+      <td class="score-col"><span class="sbadge">${dcnt}/${upTo}</span></td>
+      <td class="pct-col"><div class="pr"><div class="pbg"><div class="pfg"style="width:${pct}%"></div></div><span class="plbl">${pct}%</span></div></td>
+    </tr>`;
+  });
+  document.getElementById('ht').innerHTML=`<thead><tr>${ths}</tr></thead><tbody>${rows}</tbody>`;
+}
+
+window.togHabit=async(el,k)=>{
+  if(!k)return;
+  const hdata=JSON.parse(JSON.stringify(userData.habitData||{}));
+  const cur=hdata[k];
+  if(!cur){hdata[k]='done';el.textContent='✅';el.className='hc hdn';toast('✅ Done!');}
+  else if(cur==='done'){hdata[k]='miss';el.textContent='❌';el.className='hc hms';toast('❌ Missed','info');}
+  else{delete hdata[k];el.textContent='';el.className='hc';toast('Cleared');}
+  await save({habitData:hdata});
+};
+
+window.deleteHabit=async(hi)=>{
+  if(!confirm('Delete this habit?'))return;
+  const habs=JSON.parse(JSON.stringify(userData.habits||DEFAULT_HABITS));
+  habs.splice(hi,1);
+  await save({habits:habs});
+  toast('Habit deleted');
+};
+
+window.editHabit=(hi)=>{
+  const h=(userData.habits||DEFAULT_HABITS)[hi];
+  const icon=prompt('Icon (emoji):',h.i);
+  const label=prompt('Habit name:',h.l);
+  if(!label?.trim())return;
+  const habs=JSON.parse(JSON.stringify(userData.habits||DEFAULT_HABITS));
+  habs[hi]={id:habs[hi].id,i:icon?.trim()||h.i,l:label.trim()};
+  save({habits:habs}).then(()=>toast('Habit updated!'));
+};
+
+window.openAddHabit=()=>openModal('habitModal');
+window.saveHabit=async()=>{
+  const icon=document.getElementById('hIcon').value.trim()||'⭐';
+  const label=document.getElementById('hLabel').value.trim();
+  if(!label)return toast('Habit name required','info');
+  const habs=JSON.parse(JSON.stringify(userData.habits||DEFAULT_HABITS));
+  habs.push({id:'h'+Date.now(),i:icon,l:label});
+  await save({habits:habs});
+  closeModal('habitModal');
+  toast('Habit added!');
+};
+
+// Weekly
+function wkKey(){
+  const d=new Date(),y=d.getFullYear(),s=new Date(y,0,1);
+  return`${y}-W${Math.ceil(((d-s)/86400000+s.getDay()+1)/7)}`;
+}
+
+function renderWeekly(){
+  if(!userData)return;
+  const weekly=userData.weekly||DEFAULT_WEEKLY;
+  const wk=wkKey();
+  const todIdx=(now.getDay()+6)%7;
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let ths=`<th>AREA</th>`+days.map((d,i)=>`<th class="${i===todIdx?'tw':''}">${d}</th>`).join('');
+  let rows=weekly.map((row,ri)=>{
+    let tds=`<td>${row.a}</td>`;
+    tds+=row.t.map((task,di)=>{
+      const k=`${wk}|${ri}|${di}`;
+      const dn=!!(userData?.weekDone||{})[k];
+      return`<td class="${di===todIdx?'tw':''} ${dn?'wdn':''}"onclick="togWeek('${k}')">${dn?'✅ ':''}${task.replace(/\n/g,'<br>')}</td>`;
+    }).join('');
+    return`<tr>${tds}</tr>`;
+  }).join('');
+  document.getElementById('wt').innerHTML=`<thead><tr>${ths}</tr></thead><tbody>${rows}</tbody>`;
+}
+
+window.togWeek=async(k)=>{
+  const wd=JSON.parse(JSON.stringify(userData.weekDone||{}));
+  wd[k]=!wd[k];
+  await save({weekDone:wd});
+  toast(wd[k]?'✅ Done!':'↩ Cleared');
+};
+
+// Modal helper
+function openModal(id){document.getElementById(id).style.display='flex';}
+
+// Auth form toggle
+window.showSignup=()=>{
+  document.getElementById('loginForm').style.display='none';
+  document.getElementById('signupForm').style.display='block';
+  document.getElementById('authErr').style.display='none';
+};
+window.showLogin=()=>{
+  document.getElementById('signupForm').style.display='none';
+  document.getElementById('loginForm').style.display='block';
+  document.getElementById('authErr').style.display='none';
+};
+
+// Reminders
+function renderReminders(){
+  if(!userData)return;
+  const reminders=userData.reminders||[];
+  const now = new Date();
+  
+  // Sort by date/time (upcoming first)
+  const sorted = reminders.sort((a,b)=>{
+    const dateA = new Date(`${a.date} ${a.time}`);
+    const dateB = new Date(`${b.date} ${b.time}`);
+    return dateA - dateB;
+  });
+  
+  document.getElementById('remindersGrid').innerHTML=sorted.length?sorted.map((r,ri)=>{
+    const reminderDateTime = new Date(`${r.date} ${r.time}`);
+    const isPast = reminderDateTime < now;
+    const isToday = r.date === TODAY;
+    
+    // Calculate time until reminder
+    let timeUntil = '';
+    if(!isPast){
+      const diff = reminderDateTime - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+      
+      if(days > 0){
+        timeUntil = `in ${days} day${days>1?'s':''}`;
+      } else if(hours > 0){
+        timeUntil = `in ${hours} hour${hours>1?'s':''}`;
+      } else {
+        const mins = Math.floor(diff / (1000 * 60));
+        timeUntil = mins > 0 ? `in ${mins} min` : 'soon!';
+      }
+    }
+    
+    return`<div class="gc"style="border-top:3px solid ${isPast?'var(--muted)':'var(--accent)'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div style="font-size:32px;">${r.icon||'🔔'}</div>
+        <div style="display:flex;gap:5px">
+          <button class="icobtn"onclick="deleteReminder(${ri})"title="Delete">🗑️</button>
+        </div>
+      </div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">${r.task}</div>
+      ${r.notes?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${r.notes}</div>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <span style="font-size:11px;background:var(--bg2);padding:4px 8px;border-radius:6px;border:1px solid var(--border);">
+          📅 ${formatDate(r.date)}
+        </span>
+        <span style="font-size:11px;background:var(--bg2);padding:4px 8px;border-radius:6px;border:1px solid var(--border);">
+          ⏰ ${formatTime(r.time)}
+        </span>
+        ${isPast?
+          `<span style="font-size:11px;background:color-mix(in srgb,#ef4444 12%,transparent);color:#ef4444;padding:4px 8px;border-radius:6px;font-weight:600;">Past due</span>`:
+          `<span style="font-size:11px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);padding:4px 8px;border-radius:6px;font-weight:600;">${timeUntil}</span>`
+        }
+      </div>
+      ${isPast?`<button class="abtn sm"style="margin-top:10px;width:100%;"onclick="completeReminder(${ri})">✓ Mark Complete</button>`:''}
+    </div>`;
+  }).join(''):`<div style="text-align:center;padding:60px 20px;color:var(--muted);">
+    <div style="font-size:64px;margin-bottom:16px;">🔔</div>
+    <div style="font-size:16px;margin-bottom:8px;">No reminders yet</div>
+    <div style="font-size:13px;">Click "+ Add Reminder" to create ad-hoc tasks</div>
+  </div>`;
+}
+
+function formatDate(dateStr){
+  const d = new Date(dateStr);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  if(dateStr === TODAY) return 'Today';
+  if(dateStr === `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`){
+    return 'Tomorrow';
+  }
+  return `${DN[d.getDay()]}, ${d.getDate()} ${MN[d.getMonth()]}`;
+}
+
+function formatTime(timeStr){
+  const [h,m] = timeStr.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h === 0 ? 12 : (h > 12 ? h - 12 : h);
+  return `${hour12}:${String(m).padStart(2,'0')} ${period}`;
+}
+
+window.openAddReminder=()=>{
+  document.getElementById('reminderModalTitle').textContent='Add Reminder';
+  document.getElementById('saveReminderBtn').textContent='Add Reminder';
+  document.getElementById('saveReminderBtn').onclick=saveReminder;
+  document.getElementById('rIcon').value='';
+  document.getElementById('rTask').value='';
+  document.getElementById('rDate').value='';
+  document.getElementById('rTime').value='';
+  document.getElementById('rNotes').value='';
+  openModal('reminderModal');
+};
+
+window.saveReminder=async()=>{
+  const icon=document.getElementById('rIcon').value.trim()||'🔔';
+  const task=document.getElementById('rTask').value.trim();
+  const date=document.getElementById('rDate').value.trim();
+  const time=document.getElementById('rTime').value.trim();
+  const notes=document.getElementById('rNotes').value.trim();
+  
+  if(!task||!date||!time){
+    return toast('Task, date, and time are required','info');
+  }
+  
+  const reminders=JSON.parse(JSON.stringify(userData.reminders||[]));
+  reminders.push({icon,task,date,time,notes,id:'r'+Date.now()});
+  await save({reminders});
+  closeModal('reminderModal');
+  toast('🔔 Reminder added!');
+};
+
+window.deleteReminder=async(ri)=>{
+  if(!confirm('Delete this reminder?'))return;
+  const reminders=JSON.parse(JSON.stringify(userData.reminders||[]));
+  reminders.splice(ri,1);
+  await save({reminders});
+  toast('Reminder deleted');
+};
+
+window.completeReminder=async(ri)=>{
+  const reminders=JSON.parse(JSON.stringify(userData.reminders||[]));
+  reminders.splice(ri,1);
+  await save({reminders});
+  toast('✓ Reminder completed!');
+};
+
+// Init date pill
+document.getElementById('dp').textContent=`${DN[now.getDay()]}, ${now.getDate()} ${MN[now.getMonth()]} ${now.getFullYear()}`;
+
+// PWA Install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  const btn=document.getElementById('installBtn');
+  if(btn){
+    btn.style.display='block';
+    btn.onclick=async()=>{
+      deferredPrompt.prompt();
+      const{outcome}=await deferredPrompt.userChoice;
+      deferredPrompt=null;
+      btn.style.display='none';
+    };
+  }
+});
+
+</script>
+
+<style>
+/* Theme */
+[data-theme="dark"]{
+  --bg:#060a12;--bg2:#0d1420;--card:#0f1a2a;--border:#1e2d45;
+  --text:#e2e8f0;--text2:#94a3b8;--muted:#64748b;--shadow:rgba(0,0,0,.5);--stripe:#0b1624;
+}
+[data-theme="light"]{
+  --bg:#f0f4f8;--bg2:#e2e8f0;--card:#ffffff;--border:#cbd5e1;
+  --text:#1e293b;--text2:#475569;--muted:#94a3b8;--shadow:rgba(0,0,0,.12);--stripe:#f8fafc;
+}
+:root{--accent:#e94560;--amber:#f59e0b;--green:#10b981;--indigo:#6366f1;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;transition:background .3s,color .3s;overflow-x:hidden;}
+
+/* Auth */
+#authWrap{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:var(--bg);
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(233,69,96,.08)0%,transparent 60%),
+                   radial-gradient(ellipse at 80% 20%,rgba(99,102,241,.08)0%,transparent 60%);
+  padding:20px;
+}
+.auth-box{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:36px 32px;width:100%;max-width:400px;box-shadow:0 20px 60px var(--shadow);
+}
+.auth-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;text-align:center;margin-bottom:6px;
+  background:linear-gradient(135deg,#e94560,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.auth-sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px;}
+.auth-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:16px;}
+.fld{margin-bottom:13px;}
+.fld label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;margin-bottom:5px;}
+.fld input{
+  width:100%;padding:10px 13px;border-radius:9px;border:1px solid var(--border);
+  background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  transition:border-color .15s;outline:none;
+}
+.fld input:focus{border-color:var(--accent);}
+.auth-btn{
+  width:100%;padding:11px;border-radius:10px;border:none;cursor:pointer;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:10px;
+  transition:all .18s;letter-spacing:.5px;
+}
+.auth-btn.primary{background:linear-gradient(135deg,#e94560,#f59e0b);color:#fff;}
+.auth-btn.primary:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 16px rgba(233,69,96,.3);}
+.auth-btn.google{
+  background:var(--bg2);border:1px solid var(--border);color:var(--text);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.auth-btn.google:hover{border-color:var(--accent);}
+.auth-divider{text-align:center;color:var(--muted);font-size:12px;margin:6px 0 12px;}
+.auth-switch{text-align:center;font-size:13px;color:var(--muted);margin-top:12px;}
+.auth-switch a{color:var(--accent);cursor:pointer;font-weight:600;text-decoration:none;}
+.auth-err{background:color-mix(in srgb,#ef4444 12%,transparent);border:1px solid color-mix(in srgb,#ef4444 30%,transparent);
+  color:#ef4444;font-size:12px;padding:9px 13px;border-radius:8px;margin-bottom:12px;display:none;}
+
+/* App */
+#appWrap{display:none;}
+.hdr{position:sticky;top:0;z-index:200;
+  background:color-mix(in srgb,var(--bg)88%,transparent);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;
+  background:linear-gradient(135deg,#e94560,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;}
+.logo em{font-size:10px;color:var(--muted);-webkit-text-fill-color:var(--muted);font-weight:400;font-style:normal;margin-left:4px;}
+.nav{display:flex;gap:2px;flex:1;justify-content:center;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.nb{padding:5px 12px;border-radius:8px;border:1px solid transparent;background:transparent;
+  color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;transition:all .18s;white-space:nowrap;flex-shrink:0;}
+.nb:hover{color:var(--text);background:var(--bg2);}
+.nb.on{background:var(--bg2);color:var(--accent);border-color:var(--border);}
+.hdr-r{display:flex;align-items:center;gap:12px;flex-shrink:0;position:relative;}
+.dpill{font-size:11px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#e94560,#f59e0b);
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;}
+.uname{font-size:13px;color:var(--text);font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* User Menu Dropdown */
+.user-menu{position:relative;}
+.avatar-btn{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 4px;border-radius:20px;
+  background:transparent;border:1px solid transparent;cursor:pointer;transition:all .2s;}
+.avatar-btn:hover{background:var(--bg2);border-color:var(--border);}
+.chevron{font-size:10px;color:var(--muted);transition:transform .2s;}
+.avatar-btn:hover .chevron{transform:translateY(1px);}
+
+.dropdown-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:200px;
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.15);padding:6px;z-index:1000;
+  animation:dropdownSlide .2s ease;}
+@keyframes dropdownSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+.dropdown-item{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:8px;cursor:pointer;transition:all .15s;font-size:13px;color:var(--text);}
+.dropdown-item:hover{background:var(--bg2);}
+.dropdown-item.danger:hover{background:color-mix(in srgb,#ef4444 10%,transparent);color:#ef4444;}
+.dropdown-item.danger:hover .dropdown-icon{opacity:1;}
+
+.dropdown-icon{font-size:16px;width:20px;display:flex;align-items:center;justify-content:center;}
+.dropdown-label{flex:1;font-weight:500;}
+.dropdown-divider{height:1px;background:var(--border);margin:4px 0;}
+
+/* Wrap */
+.wrap{padding:20px 18px;max-width:1400px;margin:0 auto;}
+.pg{display:none;}
+.pg.on{display:block;animation:fi .22s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* Typography */
+.stitle{font-family:'Syne',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.6px;
+  text-transform:uppercase;color:var(--muted);margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;}
+.stitle::after{content:'';flex:1;height:1px;background:var(--border);}
+.ptitle{font-family:'Syne',sans-serif;font-weight:800;font-size:24px;letter-spacing:-1px;margin-bottom:5px;}
+.psub{color:var(--muted);font-size:13px;margin-bottom:18px;}
+
+/* Hero */
+.hero{text-align:center;padding:28px 0 36px;}
+.hbadge{display:inline-flex;align-items:center;gap:5px;
+  background:color-mix(in srgb,var(--accent)10%,transparent);border:1px solid color-mix(in srgb,var(--accent)25%,transparent);
+  color:var(--accent);font-size:10px;letter-spacing:1.8px;text-transform:uppercase;padding:4px 13px;border-radius:20px;margin-bottom:15px;
+  font-family:'Syne',sans-serif;font-weight:600;}
+.hero h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(26px,5vw,48px);
+  line-height:1.05;letter-spacing:-1.5px;color:var(--text);margin-bottom:11px;}
+.hero h1 em{background:linear-gradient(135deg,#e94560,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-style:normal;}
+.hero p{color:var(--muted);font-size:13px;max-width:400px;margin:0 auto;line-height:1.6;}
+
+/* Stats */
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:22px;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;
+  position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s;}
+.sc:hover{transform:translateY(-2px);box-shadow:0 4px 16px var(--shadow);}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--amber));}
+.sn{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--amber));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.9px;margin-top:3px;}
+
+/* Goals */
+.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.gc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all .18s;}
+.gc:hover{border-color:color-mix(in srgb,var(--accent)30%,transparent);transform:translateY(-2px);box-shadow:0 5px 20px var(--shadow);}
+.garea{display:inline-flex;align-items:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;background:var(--bg2);padding:3px 9px;border-radius:20px;margin-bottom:8px;}
+.gtitle{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:5px;line-height:1.3;}
+.gwhy{color:var(--text2);font-size:12px;line-height:1.5;margin-bottom:10px;}
+.pb{height:4px;background:var(--bg2);border-radius:2px;margin:7px 0 4px;overflow:hidden;}
+.pf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--amber));transition:width .5s;}
+.gsb{font-size:10px;padding:2px 8px;border-radius:20px;background:color-mix(in srgb,var(--amber)15%,transparent);color:var(--amber);}
+.gsb.done{background:color-mix(in srgb,var(--green)15%,transparent);color:var(--green);}
+.gsb.pend{background:color-mix(in srgb,var(--muted)15%,transparent);color:var(--muted);}
+.gmeta{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;}
+.gdl{font-size:11px;color:var(--amber);}
+.srow{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text2);
+  padding:5px 0;border-bottom:1px solid color-mix(in srgb,var(--border)45%,transparent);cursor:pointer;transition:color .15s;}
+.srow:hover{color:var(--text);}
+.srow.ck{color:var(--green);}
+.srow.ck .sb{background:var(--green);border-color:var(--green);}
+.sb{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;transition:all .15s;}
+
+/* Schedule */
+.sw{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 9px;}
+.sb2{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:start;
+  padding:10px 12px;border-left:2px solid var(--border);margin-left:16px;
+  position:relative;transition:all .15s;border-radius:0 8px 8px 0;}
+.sb2:hover{background:color-mix(in srgb,var(--bg2)55%,transparent);}
+.sb2.cur{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent)5%,transparent);}
+.sb2.dn{border-left-color:var(--green);}
+.sb2::before{content:'';position:absolute;left:-7px;top:14px;width:12px;height:12px;
+  border-radius:50%;background:var(--border);border:2px solid var(--bg);}
+.sb2.cur::before{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent)15%,transparent);}
+.sb2.dn::before{background:var(--green);}
+.st{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;color:var(--muted);padding-top:2px;white-space:nowrap;}
+.st.now{color:var(--accent);}
+.stit{font-weight:600;font-size:13px;margin-bottom:3px;}
+.sdet{color:var(--text2);font-size:12px;line-height:1.5;}
+.sgt{font-size:10px;background:color-mix(in srgb,var(--indigo)15%,transparent);color:color-mix(in srgb,var(--indigo)75%,var(--text));padding:2px 7px;border-radius:20px;margin-top:4px;display:inline-block;}
+.pt{font-size:10px;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+.pt-c{background:color-mix(in srgb,#ef444415%,transparent);color:#ef4444;}
+.pt-h{background:color-mix(in srgb,var(--amber)15%,transparent);color:var(--amber);}
+.pt-m{background:color-mix(in srgb,var(--green)15%,transparent);color:var(--green);}
+
+/* Habit table - FIXED HEADER */
+.hw{overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;-webkit-overflow-scrolling:touch;}
+.ht{width:100%;border-collapse:collapse;min-width:900px;}
+.ht thead{position:sticky;z-index:10;}
+.ht thead tr th{
+  background:var(--bg2);padding:8px 3px;text-align:center;
+  font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.5px;border-bottom:2px solid var(--border);
+}
+.ht thead tr th.icon-col{width:36px;min-width:36px;}
+.ht thead tr th.habit-col{text-align:left;padding-left:14px;min-width:180px;max-width:220px;}
+.ht thead tr th.day-col{min-width:28px;width:32px;}
+.ht thead tr th.score-col{min-width:70px;}
+.ht thead tr th.pct-col{min-width:80px;}
+.ht thead tr th.th-today{color:var(--accent);background:color-mix(in srgb,var(--accent)7%,var(--bg2));}
+.ht tbody tr{border-bottom:1px solid color-mix(in srgb,var(--border)50%,transparent);}
+.ht tbody tr:nth-child(even){background:var(--stripe);}
+.ht td{padding:5px 3px;text-align:center;vertical-align:middle;}
+.ht td.icon-col{font-size:16px;}
+.ht td.habit-col{text-align:left;padding-left:14px;font-size:13px;font-weight:500;}
+.ht td.score-col,.ht td.pct-col{padding:5px 8px;}
+.hc{width:26px;height:26px;border-radius:5px;cursor:pointer;border:1px solid var(--border);
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  margin:0 auto;font-size:11px;transition:all .12s;user-select:none;}
+.hc:hover{border-color:var(--accent);transform:scale(1.12);}
+.hdn{background:color-mix(in srgb,var(--green)18%,transparent);border-color:var(--green);}
+.hms{background:color-mix(in srgb,#ef44449%,transparent);border-color:color-mix(in srgb,#ef444428%,transparent);}
+.hft{opacity:.2;cursor:not-allowed;pointer-events:none;}
+.htc{border-color:color-mix(in srgb,var(--accent)50%,transparent);}
+.sbadge{background:color-mix(in srgb,var(--amber)15%,transparent);color:var(--amber);font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;}
+.pr{display:flex;align-items:center;gap:5px;min-width:80px;}
+.pbg{flex:1;height:4px;border-radius:2px;background:var(--bg2);overflow:hidden;}
+.pfg{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),#34d399);transition:width .4s;}
+.plbl{font-size:10px;color:var(--green);font-weight:600;min-width:24px;}
+.mb{display:flex;align-items:center;gap:10px;margin-bottom:12px;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:8px 14px;flex-wrap:wrap;}
+.mbtn{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:8px;cursor:pointer;font-family:'DM Sans';font-size:13px;transition:all .15s;}
+.mbtn:hover{border-color:var(--accent);color:var(--accent);}
+.mname{font-family:'Syne',sans-serif;font-weight:700;font-size:15px;flex:1;text-align:center;min-width:120px;}
+.mscore{font-size:12px;color:var(--muted);white-space:nowrap;}
+
+/* Weekly */
+.wt{width:100%;border-collapse:collapse;min-width:800px;}
+.wt th{background:var(--bg2);padding:8px 6px;text-align:center;
+  font-family:'Syne',sans-serif;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.9px;text-transform:uppercase;border-bottom:2px solid var(--border);}
+.wt th:first-child{text-align:left;padding-left:14px;min-width:140px;}
+.wt th.tw{color:var(--accent);border-bottom-color:var(--accent);}
+.wt td{padding:8px 6px;border-bottom:1px solid color-mix(in srgb,var(--border)40%,transparent);
+  border-right:1px solid color-mix(in srgb,var(--border)22%,transparent);
+  vertical-align:top;font-size:12px;color:var(--text2);line-height:1.5;cursor:pointer;transition:background .15s;}
+.wt td:hover{background:var(--bg2);color:var(--text);}
+.wt td.tw{background:color-mix(in srgb,var(--accent)4%,transparent);}
+.wt td:first-child{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:var(--text);cursor:default;padding-left:14px;}
+.wt td:first-child:hover{background:transparent;}
+.wt td.wdn{color:var(--green);}
+
+/* Buttons */
+.abtn{background:linear-gradient(135deg,var(--accent),var(--amber));color:#fff;
+  border:none;padding:8px 15px;border-radius:9px;cursor:pointer;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:12px;letter-spacing:.5px;
+  transition:all .18s;}
+.abtn:hover{opacity:.88;transform:translateY(-1px);}
+.abtn.sm{padding:5px 11px;font-size:11px;}
+.icobtn{background:var(--bg2);border:1px solid var(--border);border-radius:7px;
+  padding:3px 7px;cursor:pointer;font-size:12px;transition:all .15s;}
+.icobtn:hover{border-color:var(--accent);}
+.icobtn.sm{padding:2px 5px;font-size:11px;}
+
+/* Modals */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;
+  display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px var(--shadow);}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:16px;}
+.mfld{margin-bottom:12px;}
+.mfld label{display:block;font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.6px;text-transform:uppercase;margin-bottom:5px;}
+.mfld input,.mfld select,.mfld textarea{
+  width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);
+  background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s;outline:none;}
+.mfld input:focus,.mfld select:focus,.mfld textarea:focus{border-color:var(--accent);}
+.mfld select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 12px center;
+  padding-right:36px;
+  cursor:pointer;
+}
+.mfld textarea{resize:vertical;min-height:76px;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap;}
+.btn-cancel{background:var(--bg2);border:1px solid var(--border);color:var(--text);
+  padding:8px 15px;border-radius:9px;cursor:pointer;font-family:'DM Sans';font-size:13px;transition:all .15s;}
+.btn-cancel:hover{border-color:var(--accent);}
+
+/* Toast */
+.toast{position:fixed;bottom:18px;right:18px;z-index:999;background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:10px 15px;font-size:13px;box-shadow:0 8px 28px var(--shadow);
+  transform:translateY(66px);opacity:0;transition:all .26s ease;pointer-events:none;max-width:calc(100vw - 36px);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.ok{border-left:3px solid var(--green);}
+.toast.info{border-left:3px solid var(--accent);}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* Mobile responsive - FIXED */
+@media(max-width:768px){
+  .wrap{padding:16px 12px;}
+  .hero{padding:20px 0 28px;}
+  .hero h1{font-size:28px;}
+  .sg{grid-template-columns:1fr 1fr;gap:10px;}
+  .gg{grid-template-columns:1fr;}
+  .nb .bl{display:none;}
+  .logo em{display:none;}
+  .hdr{padding:0 12px;gap:8px;height:54px;}
+  .dpill{display:none;}
+  .uname{display:none;}
+  .avatar{width:30px;height:30px;font-size:13px;}
+  .avatar-btn{padding:4px;}
+  .chevron{display:none;}
+  .dropdown-menu{min-width:180px;right:-8px;}
+  .sb2{grid-template-columns:1fr;gap:8px;}
+  .st{font-size:10px;margin-bottom:4px;}
+  .pt{align-self:flex-start;margin-top:4px;}
+  .modal-box{padding:20px;}
+  .auth-box{padding:28px 24px;}
+  /* Habit table mobile fix */
+  .ht thead tr th.habit-col{min-width:140px;max-width:160px;font-size:9px;}
+  .ht thead tr th.day-col{min-width:24px;width:28px;font-size:9px;}
+  .ht td.habit-col{font-size:12px;}
+  .hc{width:24px;height:24px;font-size:10px;}
+  .mb{padding:7px 11px;gap:8px;}
+  .mname{font-size:14px;}
+  .mscore{font-size:11px;}
+}
+
+@media(max-width:480px){
+  .ptitle{font-size:20px;}
+  .psub{font-size:12px;}
+  .stitle{font-size:10px;letter-spacing:1.2px;}
+  .modal-btns{flex-direction:column;}
+  .modal-btns button{width:100%;}
+}
+
+/* PWA install button */
+#installBtn{
+  position:fixed;bottom:80px;right:20px;z-index:100;
+  background:linear-gradient(135deg,var(--accent),var(--amber));color:#fff;
+  border:none;padding:10px 18px;border-radius:24px;cursor:pointer;
+  font-family:'Syne',sans-serif;font-weight:700;font-size:13px;
+  box-shadow:0 6px 20px rgba(233,69,96,.4);
+  display:none;
+}
+</style>
+</head>
+<body>
+
+<!-- Auth -->
+<div id="authWrap">
+  <div class="auth-box">
+    <div class="auth-logo">Life OS</div>
+    <div class="auth-sub">Your life, intentionally designed · 2026</div>
+    <div id="authErr"class="auth-err"></div>
+    <div id="loginForm">
+      <div class="auth-title">Welcome back 👋</div>
+      <div class="fld"><label>Email</label><input id="loginEmail"type="email"placeholder="you@example.com"></div>
+      <div class="fld"><label>Password</label><input id="loginPass"type="password"placeholder="••••••••"></div>
+      <button class="auth-btn primary"onclick="doLogin()">Sign In</button>
+      <div class="auth-divider">or</div>
+      <button class="auth-btn google"onclick="doGoogle()">
+        <svg width="16"height="16"viewBox="0 0 24 24"><path fill="#EA4335"d="M5.27 9.76A7.08 7.08 0 0 1 12 4.9c1.76 0 3.35.64 4.58 1.68l3.4-3.4A12 12 0 0 0 0 12c0 1.99.49 3.86 1.35 5.52l4-3.11a7.1 7.1 0 0 1-.08-.65 7.17 7.17 0 0 1 0-4Z"/><path fill="#FBBC05"d="M12 4.9c2.07 0 3.92.75 5.36 1.97l-3.4 3.4A7.02 7.02 0 0 0 12 9.5a7.08 7.08 0 0 0-6.73 4.26l-4-3.11A11.97 11.97 0 0 1 12 4.9Z"/><path fill="#34A853"d="M12 19.1a7.08 7.08 0 0 1-6.73-4.84l-4 3.1A11.97 11.97 0 0 0 12 24c3.24 0 6.18-1.22 8.41-3.21l-3.77-2.93A7.02 7.02 0 0 1 12 19.1Z"/><path fill="#4285F4"d="M23.9 12.27c0-.79-.07-1.55-.19-2.27H12v4.55h6.69a5.7 5.7 0 0 1-2.47 3.74l3.77 2.93C22.38 19.1 23.9 15.88 23.9 12.27Z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-switch">Don't have an account? <a onclick="showSignup()">Sign up free</a></div>
+    </div>
+    <div id="signupForm"style="display:none">
+      <div class="auth-title">Create your account 🚀</div>
+      <div class="fld"><label>Full Name</label><input id="signupName"type="text"placeholder="Your Name"></div>
+      <div class="fld"><label>Email</label><input id="signupEmail"type="email"placeholder="you@example.com"></div>
+      <div class="fld"><label>Password</label><input id="signupPass"type="password"placeholder="Min 6 characters"></div>
+      <button class="auth-btn primary"onclick="doSignup()">Create Account</button>
+      <div class="auth-divider">or</div>
+      <button class="auth-btn google"onclick="doGoogle()">
+        <svg width="16"height="16"viewBox="0 0 24 24"><path fill="#EA4335"d="M5.27 9.76A7.08 7.08 0 0 1 12 4.9c1.76 0 3.35.64 4.58 1.68l3.4-3.4A12 12 0 0 0 0 12c0 1.99.49 3.86 1.35 5.52l4-3.11a7.1 7.1 0 0 1-.08-.65 7.17 7.17 0 0 1 0-4Z"/><path fill="#FBBC05"d="M12 4.9c2.07 0 3.92.75 5.36 1.97l-3.4 3.4A7.02 7.02 0 0 0 12 9.5a7.08 7.08 0 0 0-6.73 4.26l-4-3.11A11.97 11.97 0 0 1 12 4.9Z"/><path fill="#34A853"d="M12 19.1a7.08 7.08 0 0 1-6.73-4.84l-4 3.1A11.97 11.97 0 0 0 12 24c3.24 0 6.18-1.22 8.41-3.21l-3.77-2.93A7.02 7.02 0 0 1 12 19.1Z"/><path fill="#4285F4"d="M23.9 12.27c0-.79-.07-1.55-.19-2.27H12v4.55h6.69a5.7 5.7 0 0 1-2.47 3.74l3.77 2.93C22.38 19.1 23.9 15.88 23.9 12.27Z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="appWrap">
+  <header class="hdr">
+    <div class="logo">Life OS <em>✦ 2026</em></div>
+    <nav class="nav">
+      <button class="nb on"onclick="sp('dashboard')">🏠 <span class="bl">Dashboard</span></button>
+      <button class="nb"onclick="sp('goals')">🎯 <span class="bl">Goals</span></button>
+      <button class="nb"onclick="sp('schedule')">⏰ <span class="bl">Schedule</span></button>
+      <button class="nb"onclick="sp('habits')">✅ <span class="bl">Habits</span></button>
+      <button class="nb"onclick="sp('reminders')">🔔 <span class="bl">Reminders</span></button>
+      <button class="nb"onclick="sp('weekly')">📆 <span class="bl">Weekly</span></button>
+    </nav>
+    <div class="hdr-r">
+      <div class="dpill"id="dp"></div>
+      <div class="user-menu">
+        <button class="avatar-btn"onclick="toggleUserMenu()"id="avatarBtn">
+          <div class="avatar"id="userAvatar">K</div>
+          <span class="uname"id="userEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3a4f495f487a5f575b535614595557">[email&#160;protected]</a></span>
+          <span class="chevron">▼</span>
+        </button>
+        
+        <!-- Dropdown Menu -->
+        <div class="dropdown-menu"id="userDropdown"style="display:none;">
+          <div class="dropdown-item"onclick="toggleTheme()">
+            <span class="dropdown-icon"id="themeIcon">🌙</span>
+            <span class="dropdown-label"id="themeLabel">Dark Mode</span>
+          </div>
+          <div class="dropdown-item"onclick="toggleNotifications()">
+            <span class="dropdown-icon">🔔</span>
+            <span class="dropdown-label"id="notifLabel">Notifications</span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item"onclick="doLogout()">
+            <span class="dropdown-icon">🚪</span>
+            <span class="dropdown-label">Sign Out</span>
+          </div>
+          <div class="dropdown-item danger"onclick="deleteAccount()">
+            <span class="dropdown-icon">🗑️</span>
+            <span class="dropdown-label">Delete Account</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- Dashboard -->
+    <div class="pg on"id="pg-dashboard">
+      <div class="hero">
+        <div class="hbadge">✦ Your Life, Intentionally Designed · 2026 ✦</div>
+        <h1>Build the life<br>you <em>actually</em> want</h1>
+        <p>Goals · Daily schedule · Habits — all synced to the cloud.</p>
+      </div>
+      <div class="sg"id="statsG"></div>
+      <div class="stitle">Today's Schedule</div>
+      <div class="sw"id="dashSched"style="margin-bottom:22px;"></div>
+      <div class="stitle">Goal Progress</div>
+      <div class="gg"id="dashGoals"></div>
+    </div>
+
+    <!-- Goals -->
+    <div class="pg"id="pg-goals">
+      <div class="ptitle">🎯 Goals</div>
+      <div class="psub">Click steps to mark complete. Add, edit or delete goals anytime.</div>
+      <div class="gg"id="goalsG"></div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="pg"id="pg-schedule">
+      <div class="ptitle">📅 Daily Schedule</div>
+      <div class="psub">Click any block to mark done. Auto-highlights your current block.</div>
+      <div class="sw"id="schedFull"></div>
+    </div>
+
+    <!-- Habits -->
+    <div class="pg"id="pg-habits">
+      <div class="ptitle">✅ Habit Tracker</div>
+      <div class="psub"style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <span>Click: 1st = ✅ Done · 2nd = ❌ Missed · 3rd = Clear</span>
+        <button class="abtn sm"onclick="openAddHabit()">＋ Add Habit</button>
+      </div>
+      <div class="mb">
+        <button class="mbtn"onclick="chMo(-1)">← Prev</button>
+        <div class="mname"id="moName"></div>
+        <button class="mbtn"onclick="chMo(1)">Next →</button>
+        <div class="mscore"id="moScore"></div>
+      </div>
+      <div class="hw"><table class="ht"id="ht"></table></div>
+    </div>
+
+    <!-- Weekly -->
+    <div class="pg"id="pg-weekly">
+      <div class="ptitle">📆 Weekly Planner</div>
+      <div class="psub">Goals mapped to each day. Click to mark done.</div>
+      <div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;">
+        <table class="wt"id="wt"></table>
+      </div>
+    </div>
+
+    <!-- Reminders -->
+    <div class="pg"id="pg-reminders">
+      <div class="ptitle">🔔 Reminders & Tasks</div>
+      <div class="psub">Quick reminders for ad-hoc tasks. Get notified at the set time.</div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+        <button class="abtn"onclick="openAddReminder()">＋ Add Reminder</button>
+      </div>
+      <div id="remindersGrid"class="gg"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modals -->
+<div class="modal"id="goalModal">
+  <div class="modal-box">
+    <div class="modal-title"id="goalModalTitle">Add Goal</div>
+    
+    <!-- AI Assistant Toggle -->
+    <div style="background:color-mix(in srgb,var(--accent) 8%,transparent);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:10px;padding:12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+      <input type="checkbox"id="aiToggle"style="width:18px;height:18px;cursor:pointer;">
+      <label for="aiToggle"style="cursor:pointer;flex:1;font-size:13px;color:var(--text);margin:0;">
+        <strong style="color:var(--accent);">✨ AI Assistant</strong> — Let AI generate personalized steps, schedule & habits for this goal
+      </label>
+    </div>
+
+    <div class="mfld"><label>Goal Title *</label><input id="gTitle"placeholder="e.g. Learn Spanish"></div>
+    <div class="mfld">
+      <label>Area / Category *</label>
+      <select id="gArea"style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;transition:border-color .15s;outline:none;">
+        <option value="">-- Select Category --</option>
+        <option value="Health & Fitness 🧘">Health & Fitness 🧘</option>
+        <option value="Career Growth 💼">Career Growth 💼</option>
+        <option value="Finances 💰">Finances 💰</option>
+        <option value="Relationships 🤝">Relationships 🤝</option>
+        <option value="Adventure & Travel ✈️">Adventure & Travel ✈️</option>
+        <option value="Fun & Hobbies 🎨">Fun & Hobbies 🎨</option>
+        <option value="Community 🌍">Community 🌍</option>
+        <option value="Learning & Education 📚">Learning & Education 📚</option>
+        <option value="Spirituality & Mindfulness 🧘‍♂️">Spirituality & Mindfulness 🧘‍♂️</option>
+        <option value="Home & Environment 🏡">Home & Environment 🏡</option>
+        <option value="Custom">✏️ Custom (type below)</option>
+      </select>
+    </div>
+    <div class="mfld"id="customAreaField"style="display:none;">
+      <label>Custom Area</label>
+      <input id="gAreaCustom"placeholder="e.g. Music Production 🎵">
+    </div>
+    <div class="mfld"><label>Why does this matter?</label><input id="gWhy"placeholder="Your motivation"></div>
+    <div class="mfld"><label>Deadline</label><input id="gDeadline"type="date"style="padding:9px 12px;"></div>
+    <div class="mfld"><label>How will you measure it?</label><input id="gMeasure"placeholder="Success metric"></div>
+    
+    <div id="manualSteps">
+      <div class="mfld"><label>Steps (one per line)</label><textarea id="gSteps"placeholder="Step 1&#10;Step 2&#10;Step 3"></textarea></div>
+    </div>
+
+    <div id="aiLoading"style="display:none;text-align:center;padding:20px;color:var(--muted);font-size:13px;">
+      <div style="font-size:32px;margin-bottom:8px;">🤖</div>
+      <div>AI is generating your personalized plan...</div>
+      <div style="margin-top:8px;font-size:11px;opacity:0.7;">This may take 5-10 seconds</div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancel"onclick="closeModal('goalModal')">Cancel</button>
+      <button class="abtn"id="saveGoalBtn"onclick="saveGoalWithAI()">Save Goal</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal"id="schedModal">
+  <div class="modal-box">
+    <div class="modal-title"id="schedModalTitle">Add Schedule Block</div>
+    
+    <!-- Time Selection -->
+    <div class="mfld">
+      <label>Time *</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="sTimePicker"type="time"style="flex:1;padding:9px 12px;"onclick="handleTimePickerClick()">
+        <span id="timePickerHint"style="font-size:11px;color:var(--muted);min-width:140px;">Click to select start time</span>
+      </div>
+      <input id="sTimeDisplay"readonly placeholder="Will show: 8:00 PM - 8:30 PM"style="margin-top:8px;background:var(--bg);color:var(--text);font-weight:500;cursor:default;">
+    </div>
+    
+    <div class="mfld"><label>Icon (emoji)</label><input id="sIcon"placeholder="📌"></div>
+    <div class="mfld"><label>Activity *</label><input id="sAct"placeholder="e.g. Morning Run"></div>
+    
+    <!-- Details as Textarea -->
+    <div class="mfld">
+      <label>Details</label>
+      <textarea id="sDetail"placeholder="What exactly to do, any notes or instructions..."rows="3"style="resize:vertical;min-height:60px;"></textarea>
+    </div>
+    
+    <!-- Goal Alignment as Dropdown -->
+    <div class="mfld">
+      <label>Goal Alignment</label>
+      <select id="sGoal">
+        <option value="">-- Select Category --</option>
+        <option value="Health & Fitness 🧘">Health & Fitness 🧘</option>
+        <option value="Career Growth 💼">Career Growth 💼</option>
+        <option value="Finances 💰">Finances 💰</option>
+        <option value="Relationships 🤝">Relationships 🤝</option>
+        <option value="Adventure & Travel ✈️">Adventure & Travel ✈️</option>
+        <option value="Fun & Hobbies 🎨">Fun & Hobbies 🎨</option>
+        <option value="Community 🌍">Community 🌍</option>
+        <option value="Learning & Education 📚">Learning & Education 📚</option>
+        <option value="Spirituality & Mindfulness 🧘‍♂️">Spirituality & Mindfulness 🧘‍♂️</option>
+        <option value="Home & Environment 🏡">Home & Environment 🏡</option>
+      </select>
+    </div>
+    
+    <div class="mfld"><label>Priority</label>
+      <select id="sPri"><option value="Critical">Critical</option><option value="High"selected>High</option><option value="Medium">Medium</option></select>
+    </div>
+    
+    <!-- Auto-calculated Sort Order -->
+    <div class="mfld">
+      <label>Sort Order (auto-calculated from time)</label>
+      <input id="sH"type="number"step="0.25"placeholder="Will auto-fill"readonly style="background:var(--bg);color:var(--muted);cursor:not-allowed;">
+    </div>
+    
+    <div class="modal-btns">
+      <button class="btn-cancel"onclick="closeModal('schedModal')">Cancel</button>
+      <button class="abtn"id="saveSchedBtn"onclick="saveSched()">Add Block</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal"id="habitModal">
+  <div class="modal-box">
+    <div class="modal-title">Add Habit</div>
+    <div class="mfld"><label>Icon (emoji)</label><input id="hIcon"placeholder="⭐"></div>
+    <div class="mfld"><label>Habit Name *</label><input id="hLabel"placeholder="e.g. Drink 3L water"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel"onclick="closeModal('habitModal')">Cancel</button>
+      <button class="abtn"onclick="saveHabit()">Add Habit</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal"id="reminderModal">
+  <div class="modal-box">
+    <div class="modal-title"id="reminderModalTitle">Add Reminder</div>
+    
+    <div class="mfld"><label>Icon (emoji)</label><input id="rIcon"placeholder="🔔"></div>
+    <div class="mfld"><label>Task/Reminder *</label><input id="rTask"placeholder="e.g. Call dentist"></div>
+    
+    <!-- Reminder Date & Time -->
+    <div class="mfld">
+      <label>Date *</label>
+      <input id="rDate"type="date"style="padding:9px 12px;">
+    </div>
+    
+    <div class="mfld">
+      <label>Time *</label>
+      <input id="rTime"type="time"style="padding:9px 12px;">
+    </div>
+    
+    <div class="mfld">
+      <label>Notes</label>
+      <textarea id="rNotes"placeholder="Additional details..."rows="2"style="resize:vertical;min-height:50px;"></textarea>
+    </div>
+    
+    <div class="modal-btns">
+      <button class="btn-cancel"onclick="closeModal('reminderModal')">Cancel</button>
+      <button class="abtn"id="saveReminderBtn"onclick="saveReminder()">Add Reminder</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast"class="toast"></div>
+
+</body>
+</html><
