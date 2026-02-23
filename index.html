@@ -459,8 +459,11 @@ window.sp=(name)=>{
 // Toast
 function toast(msg,type='ok',duration=2200){
   const e=document.getElementById('toast');
-  e.textContent=msg;e.className=`toast show ${type}`;
-  clearTimeout(e._t);e._t=setTimeout(()=>e.className='toast',duration);
+  if(!e)return;
+  e.textContent=msg;
+  e.className=`toast show ${type}`;
+  clearTimeout(e._t);
+  e._t=setTimeout(()=>e.className='toast',duration);
 }
 
 // Notification System
@@ -508,7 +511,7 @@ window.toggleNotifications = async () => {
   
   // Save preference to userData
   if (userData && currentUser) {
-    await save({ notificationsEnabled });
+    await save({ notificationsEnabled: notificationsEnabled });
   }
 };
 
@@ -1180,47 +1183,94 @@ window.toggleSched=async(idx)=>{
   toast(sd[k]?'✅ Block done!':'↩ Cleared');
 };
 
-// Update time display and calculate sort order
-window.updateTimeDisplay=()=>{
-  const start = document.getElementById('sTimeStart').value;
-  const end = document.getElementById('sTimeEnd').value;
-  const period = document.getElementById('sTimePeriod').value;
+// Sequential time picker state
+let timePickerState = 'start'; // 'start' or 'end'
+let selectedStartTime = null;
+let selectedEndTime = null;
+
+// Handle time picker click/change
+window.handleTimePickerClick = () => {
+  const picker = document.getElementById('sTimePicker');
+  const hint = document.getElementById('timePickerHint');
   
-  if(!start || !end){
+  // Update hint based on state
+  if (timePickerState === 'start') {
+    hint.textContent = 'Selecting start time...';
+  } else {
+    hint.textContent = 'Now select end time...';
+  }
+};
+
+// Listen for time selection
+document.addEventListener('DOMContentLoaded', () => {
+  const picker = document.getElementById('sTimePicker');
+  if (picker) {
+    picker.addEventListener('change', function() {
+      const selectedTime = this.value; // Format: "20:00" (24-hour)
+      
+      if (timePickerState === 'start') {
+        // First selection = start time
+        selectedStartTime = selectedTime;
+        timePickerState = 'end';
+        document.getElementById('timePickerHint').textContent = 'Now select end time';
+        this.value = ''; // Clear to select end time
+      } else {
+        // Second selection = end time
+        selectedEndTime = selectedTime;
+        updateTimeDisplaySequential();
+        timePickerState = 'start';
+        document.getElementById('timePickerHint').textContent = 'Click to select start time';
+        this.value = ''; // Clear for next use
+      }
+    });
+  }
+});
+
+// Update display with sequential times
+function updateTimeDisplaySequential() {
+  if (!selectedStartTime || !selectedEndTime) {
     toast('Please select both start and end time', 'info');
     return;
   }
   
-  // Format display
-  const display = `${start}–${end} ${period}`;
+  // Convert 24-hour to 12-hour with AM/PM
+  const [startH, startM] = selectedStartTime.split(':').map(Number);
+  const [endH, endM] = selectedEndTime.split(':').map(Number);
+  
+  // Format start time
+  const startPeriod = startH >= 12 ? 'PM' : 'AM';
+  const startHour12 = startH === 0 ? 12 : (startH > 12 ? startH - 12 : startH);
+  const startFormatted = `${startHour12}:${String(startM).padStart(2,'0')} ${startPeriod}`;
+  
+  // Format end time
+  const endPeriod = endH >= 12 ? 'PM' : 'AM';
+  const endHour12 = endH === 0 ? 12 : (endH > 12 ? endH - 12 : endH);
+  const endFormatted = `${endHour12}:${String(endM).padStart(2,'0')} ${endPeriod}`;
+  
+  // Display formatted time
+  const display = `${startFormatted} - ${endFormatted}`;
   document.getElementById('sTimeDisplay').value = display;
   
-  // Calculate sort order (hour in 24-hour format)
-  const [startHour, startMin] = start.split(':').map(Number);
-  let hour24 = startHour;
+  // Calculate sort order using 24-hour format (fixed: use 24-hour directly)
+  const sortOrder = startH + (startM / 60);
+  document.getElementById('sH').value = sortOrder.toFixed(2);
   
-  // Convert to 24-hour format
-  if(period === 'PM' && startHour !== 12) {
-    hour24 = startHour + 12;
-  } else if(period === 'AM' && startHour === 12) {
-    hour24 = 0;
-  }
-  
-  // Add minutes as decimal (e.g., 30 min = 0.5)
-  const sortOrder = hour24 + (startMin / 60);
-  document.getElementById('sH').value = sortOrder;
-  
-  toast('✓ Time updated', 'ok', 1500);
-};
+  toast(`✓ Time set: ${display}`, 'ok', 2000);
+}
 
 window.openAddSched=()=>{
   document.getElementById('schedModalTitle').textContent='Add Schedule Block';
   document.getElementById('saveSchedBtn').textContent='Add Block';
   document.getElementById('saveSchedBtn').onclick=saveSched;
-  document.getElementById('sTimeStart').value='';
-  document.getElementById('sTimeEnd').value='';
-  document.getElementById('sTimePeriod').value='PM';
+  
+  // Reset time picker state
+  timePickerState = 'start';
+  selectedStartTime = null;
+  selectedEndTime = null;
+  document.getElementById('sTimePicker').value='';
+  document.getElementById('timePickerHint').textContent='Click to select start time';
   document.getElementById('sTimeDisplay').value='';
+  
   document.getElementById('sIcon').value='';
   document.getElementById('sAct').value='';
   document.getElementById('sDetail').value='';
@@ -1240,10 +1290,10 @@ window.saveSched=async()=>{
   const h=parseFloat(document.getElementById('sH').value);
   
   if(!time||!act){
-    return toast('Please set time (click ✓ button) and activity','info');
+    return toast('Please select time and enter activity','info');
   }
   if(!h && h !== 0){
-    return toast('Please click ✓ to calculate time','info');
+    return toast('Please select both start and end time','info');
   }
   
   const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
@@ -1257,16 +1307,16 @@ window.saveSched=async()=>{
 window.editSched=(idx)=>{
   const s=(userData.schedule||DEFAULT_SCHEDULE)[idx];
   
-  // Parse existing time (e.g., "6:30–7:20 AM")
-  const timeMatch = s.t.match(/(\d+):(\d+).*?(\d+):(\d+)\s*(AM|PM)/i);
-  if(timeMatch){
-    const [, startH, startM, endH, endM, period] = timeMatch;
-    document.getElementById('sTimeStart').value = `${startH.padStart(2,'0')}:${startM.padStart(2,'0')}`;
-    document.getElementById('sTimeEnd').value = `${endH.padStart(2,'0')}:${endM.padStart(2,'0')}`;
-    document.getElementById('sTimePeriod').value = period.toUpperCase();
-  }
-  
+  // For editing, just show the existing time (user can re-select if needed)
   document.getElementById('sTimeDisplay').value=s.t;
+  document.getElementById('sTimePicker').value='';
+  document.getElementById('timePickerHint').textContent='Click to change time';
+  
+  // Reset time picker state for editing
+  timePickerState = 'start';
+  selectedStartTime = null;
+  selectedEndTime = null;
+  
   document.getElementById('sIcon').value=s.i;
   document.getElementById('sAct').value=s.a;
   document.getElementById('sDetail').value=s.d;
@@ -1280,7 +1330,7 @@ window.editSched=(idx)=>{
     const h=parseFloat(document.getElementById('sH').value);
     
     if(!time || (!h && h !== 0)){
-      return toast('Please set time (click ✓ button)','info');
+      return toast('Please select time','info');
     }
     
     const sched=JSON.parse(JSON.stringify(userData.schedule||DEFAULT_SCHEDULE));
@@ -2019,16 +2069,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <!-- Time Selection -->
     <div class="mfld">
       <label>Time *</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 80px;gap:8px;">
-        <input id="sTimeStart"type="time"placeholder="9:00"style="padding:9px 12px;">
-        <input id="sTimeEnd"type="time"placeholder="10:00"style="padding:9px 12px;">
-        <select id="sTimePeriod"style="padding:9px 12px;">
-          <option value="AM">AM</option>
-          <option value="PM" selected>PM</option>
-        </select>
-        <button type="button"onclick="updateTimeDisplay()"style="padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:11px;">✓</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="sTimePicker"type="time"style="flex:1;padding:9px 12px;"onclick="handleTimePickerClick()">
+        <span id="timePickerHint"style="font-size:11px;color:var(--muted);min-width:140px;">Click to select start time</span>
       </div>
-      <input id="sTimeDisplay"readonly placeholder="Will show formatted time"style="margin-top:8px;background:var(--bg);color:var(--muted);cursor:not-allowed;">
+      <input id="sTimeDisplay"readonly placeholder="Will show: 8:00 PM - 8:30 PM"style="margin-top:8px;background:var(--bg);color:var(--text);font-weight:500;cursor:default;">
     </div>
     
     <div class="mfld"><label>Icon (emoji)</label><input id="sIcon"placeholder="📌"></div>
@@ -2084,4 +2129,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
       <button class="btn-cancel"onclick="closeModal('habitModal')">Cancel</button>
       <button class="abtn"onclick="saveHabit()">Add Habit</button>
     </div>
-  <
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast"class="toast"></div>
+
+</body>
+</html><
