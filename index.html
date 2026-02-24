@@ -515,6 +515,40 @@ window.toggleNotifications = async () => {
   }
 };
 
+// Test notification
+window.testNotification = async () => {
+  document.getElementById('userDropdown').style.display = 'none';
+  
+  if (!('Notification' in window)) {
+    toast('This browser does not support notifications', 'info');
+    return;
+  }
+  
+  if (Notification.permission === 'denied') {
+    toast('Notifications are blocked. Please enable them in browser settings.', 'info', 4000);
+    return;
+  }
+  
+  if (Notification.permission === 'default') {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      toast('Notification permission denied', 'info');
+      return;
+    }
+  }
+  
+  // Create test notification
+  const notification = new Notification('🧪 Test Notification', {
+    body: 'If you see this, notifications are working! 🎉\n\nYou will get alerts for:\n• Schedule activities (5 min before end)\n• Reminders (at exact time)',
+    icon: '/life-os/favicon.ico',
+    badge: '/life-os/favicon.ico',
+    requireInteraction: false
+  });
+  
+  setTimeout(() => notification.close(), 10000);
+  toast('✅ Test notification sent! Check your notifications.', 'ok', 3000);
+};
+
 // Request notification permission
 async function requestNotificationPermission() {
   if (!('Notification' in window)) {
@@ -580,21 +614,35 @@ function stopNotificationScheduler() {
 
 // Check if any activities need notifications
 function checkScheduleNotifications() {
-  if (!userData || !userData.schedule) return;
-  if (!notificationsEnabled) return;
-  if (Notification.permission !== 'granted') return;
+  if (!userData || !userData.schedule) {
+    console.log('No userData or schedule');
+    return;
+  }
+  if (!notificationsEnabled) {
+    console.log('Notifications disabled');
+    return;
+  }
+  if (Notification.permission !== 'granted') {
+    console.log('Notification permission not granted:', Notification.permission);
+    return;
+  }
   
   const now = new Date();
   const currentHour = now.getHours();
   const currentMinute = now.getMinutes();
   const currentTimeInMinutes = currentHour * 60 + currentMinute;
   
+  console.log(`Checking notifications at ${currentHour}:${String(currentMinute).padStart(2,'0')} (${currentTimeInMinutes} minutes)`);
+  
   const schedule = userData.schedule || DEFAULT_SCHEDULE;
   
   schedule.forEach((block, index) => {
-    // Parse end time from block (e.g., "6:30–7:20 AM")
-    const timeMatch = block.t.match(/(\d+):(\d+).*?(\d+):(\d+)\s*(AM|PM)/i);
-    if (!timeMatch) return;
+    // Parse end time from block (e.g., "6:30 PM - 7:20 PM" or "6:30–7:20 AM")
+    const timeMatch = block.t.match(/(\d+):(\d+)\s*(?:AM|PM)?\s*[-–]\s*(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeMatch) {
+      console.log(`Could not parse time for block: ${block.t}`);
+      return;
+    }
     
     const [, , , endH, endM, period] = timeMatch;
     let endHour = parseInt(endH);
@@ -611,9 +659,11 @@ function checkScheduleNotifications() {
     const fiveMinutesBefore = endTimeInMinutes - 5;
     
     // Check if we should notify (5 minutes before end time)
+    // Use range check instead of exact match to handle timing issues
     const notificationKey = `${TODAY}|${index}|${fiveMinutesBefore}`;
     
-    if (currentTimeInMinutes === fiveMinutesBefore && !notifiedActivities.has(notificationKey)) {
+    if (currentTimeInMinutes >= fiveMinutesBefore && currentTimeInMinutes < fiveMinutesBefore + 2 && !notifiedActivities.has(notificationKey)) {
+      console.log(`🔔 NOTIFICATION TRIGGERED: ${block.a} ends in 5 min`);
       notifiedActivities.add(notificationKey);
       
       // Find next activity
@@ -622,8 +672,8 @@ function checkScheduleNotifications() {
       // Create notification
       const notification = new Notification('⏰ Life OS Reminder', {
         body: `${block.i} ${block.a} ends in 5 minutes!${nextBlock ? `\n\nNext: ${nextBlock.i} ${nextBlock.a}` : ''}`,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: '/life-os/favicon.ico',
+        badge: '/life-os/favicon.ico',
         tag: notificationKey,
         requireInteraction: false,
         silent: false
@@ -639,23 +689,26 @@ function checkScheduleNotifications() {
   
   // Check reminders
   const reminders = userData.reminders || [];
+  console.log(`Checking ${reminders.length} reminders`);
+  
   reminders.forEach((reminder, index) => {
     const reminderDateTime = new Date(`${reminder.date} ${reminder.time}`);
     const reminderHour = reminderDateTime.getHours();
     const reminderMinute = reminderDateTime.getMinutes();
     const reminderTimeInMinutes = reminderHour * 60 + reminderMinute;
     
-    // Check if it's time for this reminder
-    const notificationKey = `${TODAY}|reminder|${index}`;
+    // Check if it's time for this reminder (with 2-minute window)
+    const notificationKey = `${reminder.date}|reminder|${index}`;
     
-    if (currentTimeInMinutes === reminderTimeInMinutes && !notifiedActivities.has(notificationKey)) {
+    if (currentTimeInMinutes >= reminderTimeInMinutes && currentTimeInMinutes < reminderTimeInMinutes + 2 && !notifiedActivities.has(notificationKey)) {
+      console.log(`🔔 REMINDER NOTIFICATION: ${reminder.task}`);
       notifiedActivities.add(notificationKey);
       
       // Create notification
       const notification = new Notification('🔔 Life OS Reminder', {
         body: `${reminder.icon} ${reminder.task}${reminder.notes ? '\n\n' + reminder.notes : ''}`,
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: '/life-os/favicon.ico',
+        badge: '/life-os/favicon.ico',
         tag: notificationKey,
         requireInteraction: true,
         silent: false
@@ -2103,6 +2156,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
           <div class="dropdown-item"onclick="toggleNotifications()">
             <span class="dropdown-icon">🔔</span>
             <span class="dropdown-label"id="notifLabel">Notifications</span>
+          </div>
+          <div class="dropdown-item"onclick="testNotification()">
+            <span class="dropdown-icon">🧪</span>
+            <span class="dropdown-label">Test Notification</span>
           </div>
           <div class="dropdown-divider"></div>
           <div class="dropdown-item"onclick="doLogout()">
