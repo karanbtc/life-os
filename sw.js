@@ -45,3 +45,24 @@ self.addEventListener('fetch', event => {
     )
   );
 });
+
+// Notification click event - open app when notification is clicked
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      // Check if app is already open
+      for (let client of clientList) {
+        if (client.url.includes('/life-os/') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      
+      // Open new window if app not already open
+      if (clients.openWindow) {
+        return clients.openWindow('/life-os/');
+      }
+    })
+  );
+});
