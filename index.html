@@ -537,12 +537,35 @@ window.testNotification = async () => {
     }
   }
   
-  // Create test notification
-  const notification = new Notification('🧪 Test Notification', {
+  // Try Service Worker notification first (better for PWA)
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('🧪 Life OS Test', {
+        body: 'If you see this, notifications are working! 🎉\n\nYou will get alerts for:\n• Schedule activities (5 min before end)\n• Reminders (at exact time)',
+        icon: '/life-os/icon-192.svg',
+        badge: '/life-os/icon-192.svg',
+        tag: 'test-notification',
+        requireInteraction: false,
+        vibrate: [200, 100, 200],
+        data: {
+          url: window.location.origin + '/life-os/'
+        }
+      });
+      toast('✅ Test notification sent! Check your notifications.', 'ok', 3000);
+      return;
+    } catch (error) {
+      console.log('Service Worker notification failed, falling back to Web Notification API', error);
+    }
+  }
+  
+  // Fallback to Web Notification API
+  const notification = new Notification('🧪 Life OS Test', {
     body: 'If you see this, notifications are working! 🎉\n\nYou will get alerts for:\n• Schedule activities (5 min before end)\n• Reminders (at exact time)',
-    icon: '/life-os/favicon.ico',
-    badge: '/life-os/favicon.ico',
-    requireInteraction: false
+    icon: '/life-os/icon-192.svg',
+    badge: '/life-os/icon-192.svg',
+    requireInteraction: false,
+    vibrate: [200, 100, 200]
   });
   
   setTimeout(() => notification.close(), 10000);
@@ -601,6 +624,49 @@ function startNotificationScheduler() {
   // Check every minute for upcoming activities
   checkScheduleNotifications();
   notificationInterval = setInterval(checkScheduleNotifications, 60 * 1000);
+}
+
+// Helper function to send notifications (works on both desktop and mobile PWA)
+async function sendNotification(title, options) {
+  // Try Service Worker notification first (better for Android PWA)
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(title, {
+        ...options,
+        icon: options.icon || '/life-os/icon-192.svg',
+        badge: options.badge || '/life-os/icon-192.svg',
+        vibrate: options.vibrate || [200, 100, 200],
+        data: {
+          url: window.location.origin + '/life-os/',
+          ...options.data
+        }
+      });
+      return true;
+    } catch (error) {
+      console.log('Service Worker notification failed, falling back', error);
+    }
+  }
+  
+  // Fallback to Web Notification API
+  try {
+    const notification = new Notification(title, {
+      ...options,
+      icon: options.icon || '/life-os/icon-192.svg',
+      badge: options.badge || '/life-os/icon-192.svg',
+      vibrate: options.vibrate || [200, 100, 200]
+    });
+    
+    // Auto-close after timeout if specified
+    if (options.timeout) {
+      setTimeout(() => notification.close(), options.timeout);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Notification failed:', error);
+    return false;
+  }
 }
 
 // Stop notification scheduler
@@ -669,18 +735,14 @@ function checkScheduleNotifications() {
       // Find next activity
       const nextBlock = schedule[index + 1];
       
-      // Create notification
-      const notification = new Notification('⏰ Life OS Reminder', {
+      // Send notification using helper
+      sendNotification('⏰ Life OS Reminder', {
         body: `${block.i} ${block.a} ends in 5 minutes!${nextBlock ? `\n\nNext: ${nextBlock.i} ${nextBlock.a}` : ''}`,
-        icon: '/life-os/favicon.ico',
-        badge: '/life-os/favicon.ico',
         tag: notificationKey,
         requireInteraction: false,
-        silent: false
+        silent: false,
+        timeout: 10000
       });
-      
-      // Auto-close after 10 seconds
-      setTimeout(() => notification.close(), 10000);
       
       // Show in-app toast as well
       toast(`⏰ ${block.a} ends in 5 min!${nextBlock ? ` Next: ${nextBlock.a}` : ''}`, 'info', 5000);
@@ -704,18 +766,14 @@ function checkScheduleNotifications() {
       console.log(`🔔 REMINDER NOTIFICATION: ${reminder.task}`);
       notifiedActivities.add(notificationKey);
       
-      // Create notification
-      const notification = new Notification('🔔 Life OS Reminder', {
+      // Send notification using helper
+      sendNotification('🔔 Life OS Reminder', {
         body: `${reminder.icon} ${reminder.task}${reminder.notes ? '\n\n' + reminder.notes : ''}`,
-        icon: '/life-os/favicon.ico',
-        badge: '/life-os/favicon.ico',
         tag: notificationKey,
         requireInteraction: true,
-        silent: false
+        silent: false,
+        timeout: 30000
       });
-      
-      // Auto-close after 30 seconds (longer for reminders)
-      setTimeout(() => notification.close(), 30000);
       
       // Show in-app toast
       toast(`🔔 ${reminder.task}`, 'info', 10000);
