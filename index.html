@@ -1745,16 +1745,31 @@ let deferredPrompt;
 window.addEventListener('beforeinstallprompt',(e)=>{
   e.preventDefault();
   deferredPrompt=e;
+  // Show install banner
+  const banner=document.getElementById('installBanner');
+  if(banner){
+    banner.style.display='block';
+  }
   const btn=document.getElementById('installBtn');
   if(btn){
-    btn.style.display='block';
     btn.onclick=async()=>{
       deferredPrompt.prompt();
       const{outcome}=await deferredPrompt.userChoice;
+      if(outcome==='accepted'){
+        toast('✅ Life OS installed! Open from home screen for best experience.','ok',4000);
+      }
       deferredPrompt=null;
-      btn.style.display='none';
+      if(banner) banner.style.display='none';
     };
   }
+});
+
+// Listen for successful install
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed successfully');
+  toast('🎉 Life OS installed! Find it on your home screen.','ok',4000);
+  const banner=document.getElementById('installBanner');
+  if(banner) banner.style.display='none';
 });
 
 </script>
@@ -2178,6 +2193,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <main class="wrap">
     <!-- Dashboard -->
     <div class="pg on"id="pg-dashboard">
+      <!-- PWA Install Banner -->
+      <div id="installBanner" style="display:none;background:linear-gradient(135deg,#e94560,#f59e0b);padding:16px 20px;border-radius:12px;margin-bottom:20px;color:#fff;box-shadow:0 4px 12px rgba(233,69,96,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📱 Install Life OS</div>
+            <div style="font-size:12px;opacity:0.95;">Get notifications even when browser is closed! Works like a native app.</div>
+          </div>
+          <button id="installBtn" style="background:#fff;color:#e94560;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);">Install</button>
+          <button onclick="document.getElementById('installBanner').style.display='none'" style="background:transparent;color:#fff;border:none;padding:8px;cursor:pointer;font-size:20px;line-height:1;opacity:0.8;">×</button>
+        </div>
+      </div>
+      
       <div class="hero">
         <div class="hbadge">✦ Your Life, Intentionally Designed · 2026 ✦</div>
         <h1>Build the life<br>you <em>actually</em> want</h1>
